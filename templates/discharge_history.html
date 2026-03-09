@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Discharge History Registry</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Oxanium:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{
+  --bg:#04080f;--surface:#070e1a;--card:#0a1525;--border:#0f2540;
+  --teal:#00d4aa;--blue:#0099ff;--red:#ff3355;--yellow:#ffcc00;
+  --purple:#9966ff;--green:#00ee77;--dim:#2a4a6a;--text:#b0d4f0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Oxanium',sans-serif;min-height:100vh}
+
+/* animated diagonal lines bg */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(
+    135deg,transparent,transparent 40px,
+    rgba(0,212,170,.018) 40px,rgba(0,212,170,.018) 41px
+  );pointer-events:none;
+}
+
+/* ── HEADER ── */
+.hdr{
+  background:linear-gradient(90deg,#04080f,#070e1a,#04080f);
+  border-bottom:1px solid var(--border);
+  padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:200;
+}
+.hdr-brand h1{
+  font-family:'Share Tech Mono',monospace;
+  font-size:17px;color:var(--teal);letter-spacing:4px;
+}
+.hdr-brand p{font-size:11px;color:var(--dim);letter-spacing:2px;margin-top:3px}
+.hdr-right{display:flex;gap:10px;align-items:center}
+.hbtn{
+  padding:7px 16px;border-radius:5px;cursor:pointer;
+  font-family:'Oxanium',sans-serif;font-weight:700;
+  font-size:12px;letter-spacing:1px;border:1px solid;
+  text-decoration:none;display:inline-block;transition:all .2s;
+}
+.hbtn-teal{background:rgba(0,212,170,.1);color:var(--teal);border-color:var(--teal)}
+.hbtn-dim{background:rgba(42,74,106,.2);color:var(--dim);border-color:var(--dim)}
+.hbtn:hover{filter:brightness(1.4)}
+
+/* ── CONTENT ── */
+.content{padding:24px 28px;max-width:1500px;margin:0 auto}
+
+/* ── KPI ROW ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.kpi{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:8px;padding:16px;position:relative;overflow:hidden;
+}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+.kpi-t::after{background:var(--teal)}.kpi-b::after{background:var(--blue)}
+.kpi-r::after{background:var(--red)}.kpi-g::after{background:var(--green)}
+.kpi-y::after{background:var(--yellow)}.kpi-p::after{background:var(--purple)}
+.kpi-lbl{font-size:10px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:8px}
+.kpi-val{font-family:'Share Tech Mono',monospace;font-size:28px;line-height:1;margin-bottom:4px}
+.kpi-sub{font-size:11px;color:var(--dim)}
+
+/* ── FILTERS ── */
+.filter-bar{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:8px;padding:16px 20px;
+  display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+  margin-bottom:18px;
+}
+.filter-bar label{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase}
+.finput{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:5px;color:var(--text);padding:7px 12px;
+  font-family:'Share Tech Mono',monospace;font-size:12px;
+  outline:none;transition:border-color .2s;
+}
+.finput:focus{border-color:var(--teal)}
+.finput::placeholder{color:var(--dim)}
+.fbtn{
+  background:rgba(0,212,170,.1);border:1px solid var(--teal);
+  color:var(--teal);padding:7px 18px;border-radius:5px;
+  cursor:pointer;font-family:'Oxanium',sans-serif;
+  font-weight:700;font-size:12px;letter-spacing:1px;transition:all .2s;
+}
+.fbtn:hover{background:rgba(0,212,170,.25)}
+.fbtn-clear{
+  background:rgba(42,74,106,.15);border:1px solid var(--dim);
+  color:var(--dim);padding:7px 14px;border-radius:5px;
+  cursor:pointer;font-family:'Oxanium',sans-serif;
+  font-weight:700;font-size:12px;letter-spacing:1px;transition:all .2s;
+}
+.fbtn-clear:hover{border-color:var(--text);color:var(--text)}
+.result-count{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim);margin-left:auto}
+
+/* ── TABLE ── */
+.table-wrap{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:8px;overflow:hidden;margin-bottom:20px;
+}
+.table-header{
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.table-header h3{
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px;color:var(--teal);letter-spacing:3px;
+}
+.export-btn{
+  background:rgba(0,153,255,.08);border:1px solid rgba(0,153,255,.3);
+  color:var(--blue);padding:5px 14px;border-radius:4px;
+  cursor:pointer;font-family:'Oxanium',sans-serif;
+  font-weight:700;font-size:11px;letter-spacing:1px;transition:all .2s;
+}
+.export-btn:hover{background:rgba(0,153,255,.2)}
+
+.tbl-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:rgba(0,0,0,.3)}
+th{
+  font-size:10px;letter-spacing:2px;color:var(--dim);
+  text-transform:uppercase;padding:10px 14px;
+  text-align:left;white-space:nowrap;border-bottom:1px solid var(--border);
+}
+td{
+  padding:10px 14px;border-bottom:1px solid rgba(15,37,64,.6);
+  vertical-align:middle;white-space:nowrap;
+}
+tbody tr{transition:background .15s}
+tbody tr:hover td{background:rgba(0,212,170,.04)}
+tbody tr:last-child td{border-bottom:none}
+
+.pid-chip{
+  display:inline-block;
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px;font-weight:700;
+  padding:3px 10px;border-radius:4px;letter-spacing:1px;
+  background:rgba(0,212,170,.1);color:var(--teal);
+  border:1px solid rgba(0,212,170,.3);cursor:pointer;
+  transition:all .2s;
+}
+.pid-chip:hover{background:rgba(0,212,170,.25);box-shadow:0 0 8px rgba(0,212,170,.3)}
+
+.bed-num{color:var(--blue);font-family:'Share Tech Mono',monospace;font-weight:700}
+.ts{color:var(--dim);font-size:11px}
+
+.risk-badge{
+  display:inline-block;padding:2px 8px;
+  border-radius:10px;font-size:10px;font-weight:700;letter-spacing:1px;
+}
+.rk-hi{background:rgba(255,51,85,.18);color:var(--red);border:1px solid var(--red)}
+.rk-md{background:rgba(255,204,0,.15);color:var(--yellow);border:1px solid var(--yellow)}
+.rk-lo{background:rgba(0,238,119,.1);color:var(--green);border:1px solid var(--green)}
+
+.vital-val{font-family:'Share Tech Mono',monospace;font-size:12px}
+.v-warn{color:var(--red)}
+.v-ok{color:var(--text)}
+
+.view-btn{
+  background:rgba(153,102,255,.1);border:1px solid rgba(153,102,255,.3);
+  color:var(--purple);padding:4px 10px;border-radius:4px;
+  cursor:pointer;font-family:'Oxanium',sans-serif;
+  font-weight:700;font-size:11px;letter-spacing:1px;transition:all .2s;
+}
+.view-btn:hover{background:rgba(153,102,255,.25)}
+
+.by-badge{
+  font-size:10px;color:var(--dim);
+  font-family:'Share Tech Mono',monospace;letter-spacing:1px;
+}
+
+/* ── EMPTY / LOADING ── */
+.empty-state{text-align:center;padding:50px 20px;color:var(--dim)}
+.empty-state h3{font-family:'Share Tech Mono',monospace;font-size:15px;margin-bottom:8px;letter-spacing:2px}
+
+/* ── PATIENT DETAIL MODAL ── */
+.modal{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.93);z-index:1000;
+  justify-content:center;align-items:flex-start;
+  overflow-y:auto;padding:30px 20px;
+}
+.modal.open{display:flex}
+.modal-box{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;width:100%;max-width:920px;
+  box-shadow:0 0 50px rgba(0,212,170,.1);
+  padding:28px;position:relative;
+}
+.modal-close{
+  position:absolute;top:16px;right:16px;
+  background:var(--card);border:1px solid var(--border);
+  color:var(--text);width:32px;height:32px;border-radius:5px;
+  cursor:pointer;font-size:16px;display:flex;
+  align-items:center;justify-content:center;transition:all .2s;
+}
+.modal-close:hover{border-color:var(--red);color:var(--red)}
+
+.modal-title{
+  font-family:'Share Tech Mono',monospace;
+  font-size:16px;color:var(--teal);letter-spacing:3px;margin-bottom:6px;
+}
+.modal-subtitle{font-size:12px;color:var(--dim);margin-bottom:20px}
+
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.detail-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:7px;padding:12px;
+}
+.dc-lbl{font-size:10px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.dc-val{font-family:'Share Tech Mono',monospace;font-size:18px}
+
+.chart-section{margin-top:20px}
+.chart-section h4{
+  font-family:'Share Tech Mono',monospace;font-size:11px;
+  color:var(--blue);letter-spacing:2px;margin-bottom:12px;
+}
+.chart-box{height:260px;position:relative}
+
+.readings-table-wrap{margin-top:20px;max-height:260px;overflow-y:auto}
+.readings-table-wrap::-webkit-scrollbar{width:4px}
+.readings-table-wrap::-webkit-scrollbar-thumb{background:var(--border)}
+
+/* ── PAGINATION ── */
+.pagination{display:flex;justify-content:center;gap:6px;margin-top:16px;flex-wrap:wrap}
+.page-btn{
+  background:var(--card);border:1px solid var(--border);
+  color:var(--dim);padding:6px 12px;border-radius:4px;
+  cursor:pointer;font-family:'Share Tech Mono',monospace;
+  font-size:11px;transition:all .2s;
+}
+.page-btn.active{border-color:var(--teal);color:var(--teal);background:rgba(0,212,170,.1)}
+.page-btn:hover:not(.active){border-color:var(--text);color:var(--text)}
+
+.ftr{
+  text-align:center;padding:20px;
+  color:var(--dim);font-size:10px;letter-spacing:3px;
+  border-top:1px solid var(--border);margin-top:10px;
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-brand">
+    <h1>DISCHARGE REGISTRY</h1>
+    <p>Permanent Patient History - Raghavendra &amp; Dhanush</p>
+  </div>
+  <div class="hdr-right">
+    <a href="/nurse"     class="hbtn hbtn-teal">NURSE</a>
+    <a href="/doctor"    class="hbtn hbtn-teal">DOCTOR</a>
+    <a href="/analytics" class="hbtn hbtn-teal">ANALYTICS</a>
+    <a href="/logout"    class="hbtn hbtn-dim">LOGOUT</a>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- KPI -->
+  <div class="kpi-row">
+    <div class="kpi kpi-t"><div class="kpi-lbl">Total Discharged</div><div class="kpi-val" id="kTot" style="color:var(--teal)">-</div><div class="kpi-sub">All time</div></div>
+    <div class="kpi kpi-b"><div class="kpi-lbl">Unique Patients</div><div class="kpi-val" id="kUniq" style="color:var(--blue)">-</div><div class="kpi-sub">Unique IDs</div></div>
+    <div class="kpi kpi-r"><div class="kpi-lbl">High Risk Cases</div><div class="kpi-val" id="kHR" style="color:var(--red)">-</div><div class="kpi-sub">Risk score &ge; 5</div></div>
+    <div class="kpi kpi-g"><div class="kpi-lbl">Avg Temperature</div><div class="kpi-val" id="kTemp" style="color:var(--green)">-</div><div class="kpi-sub">deg C overall</div></div>
+    <div class="kpi kpi-y"><div class="kpi-lbl">Avg Heart Rate</div><div class="kpi-val" id="kHRt" style="color:var(--yellow)">-</div><div class="kpi-sub">bpm overall</div></div>
+    <div class="kpi kpi-p"><div class="kpi-lbl">Avg SpO2</div><div class="kpi-val" id="kSpo2" style="color:var(--purple)">-</div><div class="kpi-sub">% overall</div></div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filter-bar">
+    <div>
+      <label>Patient ID</label><br>
+      <input class="finput" id="fPid" placeholder="e.g. A3F2B1C9" style="width:150px">
+    </div>
+    <div>
+      <label>Bed Number</label><br>
+      <input class="finput" id="fBed" placeholder="e.g. 12" type="number" style="width:90px">
+    </div>
+    <div>
+      <label>Discharged From</label><br>
+      <input class="finput" id="fFrom" type="date" style="width:145px">
+    </div>
+    <div>
+      <label>Discharged To</label><br>
+      <input class="finput" id="fTo" type="date" style="width:145px">
+    </div>
+    <div style="align-self:flex-end;display:flex;gap:8px">
+      <button class="fbtn" onclick="applyFilter()">SEARCH</button>
+      <button class="fbtn-clear" onclick="clearFilter()">CLEAR</button>
+    </div>
+    <span class="result-count" id="resultCount"></span>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <h3>VACATED PATIENT RECORDS</h3>
+      <button class="export-btn" onclick="exportCSV()">EXPORT CSV</button>
+    </div>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Patient ID</th>
+            <th>Bed</th>
+            <th>Admitted</th>
+            <th>Discharged</th>
+            <th>Avg Temp</th>
+            <th>Avg BP</th>
+            <th>Avg HR</th>
+            <th>Avg SpO2</th>
+            <th>Max Risk</th>
+            <th>Readings</th>
+            <th>Discharged By</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody id="histBody">
+          <tr><td colspan="13" style="text-align:center;padding:30px;color:var(--dim)">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="pagination" id="pagination"></div>
+
+</div>
+
+<div class="ftr">CLOUD ICU MONITORING - RAGHAVENDRA &amp; DHANUSH</div>
+
+<!-- PATIENT DETAIL MODAL -->
+<div class="modal" id="patientModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    <div class="modal-title" id="mTitle">PATIENT DETAILS</div>
+    <div class="modal-subtitle" id="mSub"></div>
+
+    <div class="detail-grid" id="mGrid"></div>
+
+    <div class="chart-section">
+      <h4>VITAL TREND DURING ADMISSION</h4>
+      <div class="chart-box"><canvas id="mChart"></canvas></div>
+    </div>
+
+    <div class="chart-section">
+      <h4>RAW READINGS LOG</h4>
+      <div class="readings-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th><th>Temp C</th><th>BP mmHg</th>
+              <th>HR bpm</th><th>SpO2 %</th><th>Risk</th>
+            </tr>
+          </thead>
+          <tbody id="mReadings"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let allData = [];
+let filteredData = [];
+let currentPage = 1;
+const PAGE_SIZE = 20;
+let modalChart = null;
+
+// ── LOAD STATS ──
+function loadStats(){
+  fetch("/discharge_history/stats")
+  .then(r=>r.json())
+  .then(d=>{
+    document.getElementById("kTot").innerText  = d.total_discharged;
+    document.getElementById("kUniq").innerText = d.unique_patients;
+    document.getElementById("kHR").innerText   = d.high_risk_cases;
+    document.getElementById("kTemp").innerText = d.overall_avg_temp;
+    document.getElementById("kHRt").innerText  = d.overall_avg_hr;
+    document.getElementById("kSpo2").innerText = d.overall_avg_spo2;
+  })
+  .catch(()=>{});
+}
+
+// ── LOAD TABLE DATA ──
+function loadHistory(params=""){
+  document.getElementById("histBody").innerHTML =
+    '<tr><td colspan="13" style="text-align:center;padding:30px;color:var(--dim)">Loading...</td></tr>';
+  fetch("/discharge_history" + (params ? "?"+params : ""))
+  .then(r=>r.json())
+  .then(d=>{
+    allData = d.history || [];
+    filteredData = allData;
+    currentPage = 1;
+    document.getElementById("resultCount").innerText =
+      filteredData.length + " record" + (filteredData.length!==1?"s":"") + " found";
+    renderTable();
+    renderPagination();
+  })
+  .catch(()=>{
+    document.getElementById("histBody").innerHTML =
+      '<tr><td colspan="13" style="text-align:center;padding:30px;color:var(--red)">Error loading data.</td></tr>';
+  });
+}
+
+// ── RENDER TABLE ──
+function renderTable(){
+  let tbody = document.getElementById("histBody");
+  let start = (currentPage-1)*PAGE_SIZE;
+  let page  = filteredData.slice(start, start+PAGE_SIZE);
+
+  if(!page.length){
+    tbody.innerHTML = '<tr><td colspan="13"><div class="empty-state"><h3>NO RECORDS FOUND</h3><p>Try adjusting your search filters</p></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = page.map((r,i)=>{
+    let rk   = r.max_risk_score;
+    let rkCl = rk>=5?"rk-hi":rk>=3?"rk-md":"rk-lo";
+    let tCl  = r.avg_temp  >= 39 ? "v-warn" : "v-ok";
+    let bCl  = r.avg_bp    > 160 ? "v-warn" : "v-ok";
+    let hCl  = r.avg_hr    > 110 ? "v-warn" : "v-ok";
+    let sCl  = r.avg_spo2  < 90  ? "v-warn" : "v-ok";
+    let admT = r.admitted   ? r.admitted.replace("T"," ").split(".")[0]   : "-";
+    let disT = r.discharged ? r.discharged.replace("T"," ").split(".")[0] : "-";
+    return `<tr>
+      <td class="ts">${start+i+1}</td>
+      <td><span class="pid-chip" onclick="viewPatient('${r.patient_id}')">${r.patient_id}</span></td>
+      <td class="bed-num">BED ${r.bed}</td>
+      <td class="ts">${admT}</td>
+      <td class="ts">${disT}</td>
+      <td><span class="vital-val ${tCl}">${r.avg_temp}°</span></td>
+      <td><span class="vital-val ${bCl}">${r.avg_bp}</span></td>
+      <td><span class="vital-val ${hCl}">${r.avg_hr}</span></td>
+      <td><span class="vital-val ${sCl}">${r.avg_spo2}%</span></td>
+      <td><span class="risk-badge ${rkCl}">${rk}</span></td>
+      <td class="ts">${r.total_readings}</td>
+      <td><span class="by-badge">${r.discharged_by||"-"}</span></td>
+      <td><button class="view-btn" onclick="viewPatient('${r.patient_id}')">DETAIL</button></td>
+    </tr>`;
+  }).join("");
+}
+
+// ── PAGINATION ──
+function renderPagination(){
+  let totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+  let pg = document.getElementById("pagination");
+  if(totalPages <= 1){ pg.innerHTML=""; return; }
+
+  let btns = "";
+  for(let i=1;i<=totalPages;i++){
+    btns += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  pg.innerHTML = btns;
+}
+
+function goPage(n){
+  currentPage = n;
+  renderTable();
+  renderPagination();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── FILTERS ──
+function applyFilter(){
+  let pid  = document.getElementById("fPid").value.trim();
+  let bed  = document.getElementById("fBed").value.trim();
+  let from = document.getElementById("fFrom").value;
+  let to   = document.getElementById("fTo").value;
+  let p    = new URLSearchParams();
+  if(pid)  p.append("patient_id", pid);
+  if(bed)  p.append("bed", bed);
+  if(from) p.append("from", from);
+  if(to)   p.append("to", to);
+  loadHistory(p.toString());
+}
+
+function clearFilter(){
+  document.getElementById("fPid").value  = "";
+  document.getElementById("fBed").value  = "";
+  document.getElementById("fFrom").value = "";
+  document.getElementById("fTo").value   = "";
+  loadHistory();
+}
+
+// ── PATIENT DETAIL MODAL ──
+function viewPatient(pid){
+  document.getElementById("patientModal").classList.add("open");
+  document.getElementById("mTitle").innerText   = "PATIENT " + pid;
+  document.getElementById("mSub").innerText     = "Loading records...";
+  document.getElementById("mGrid").innerHTML    = "";
+  document.getElementById("mReadings").innerHTML = "";
+
+  fetch("/discharge_history/patient/" + pid)
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.error){ document.getElementById("mSub").innerText=d.error; return; }
+
+    document.getElementById("mSub").innerHTML =
+      `Bed <strong style="color:var(--blue)">${d.bed}</strong> &nbsp;|&nbsp; ` +
+      `Admitted: <strong style="color:var(--teal)">${(d.admitted||"-").replace("T"," ").split(".")[0]}</strong> &nbsp;|&nbsp; ` +
+      `Discharged: <strong style="color:var(--yellow)">${(d.discharged||"-").replace("T"," ").split(".")[0]}</strong> &nbsp;|&nbsp; ` +
+      `By: <strong style="color:var(--purple)">${d.discharged_by||"-"}</strong>`;
+
+    let rk   = d.max_risk_score;
+    let rkCl = rk>=5?"color:var(--red)":rk>=3?"color:var(--yellow)":"color:var(--green)";
+
+    document.getElementById("mGrid").innerHTML = `
+      <div class="detail-card"><div class="dc-lbl">Avg Temp</div><div class="dc-val" style="color:${d.avg_temp>=39?'var(--red)':'var(--teal)'}">${d.avg_temp} C</div></div>
+      <div class="detail-card"><div class="dc-lbl">Avg BP</div><div class="dc-val" style="color:${d.avg_bp>160?'var(--red)':'var(--blue)'}">${d.avg_bp} mmHg</div></div>
+      <div class="detail-card"><div class="dc-lbl">Avg HR</div><div class="dc-val" style="color:${d.avg_hr>110?'var(--yellow)':'var(--green)'}">${d.avg_hr} bpm</div></div>
+      <div class="detail-card"><div class="dc-lbl">Avg SpO2</div><div class="dc-val" style="color:${d.avg_spo2<90?'var(--red)':'var(--purple)'}">${d.avg_spo2}%</div></div>
+      <div class="detail-card"><div class="dc-lbl">Max Risk</div><div class="dc-val" style="${rkCl}">${rk}</div></div>
+      <div class="detail-card"><div class="dc-lbl">Total Readings</div><div class="dc-val" style="color:var(--text)">${d.total_readings}</div></div>
+    `;
+
+    // Chart
+    let readings = d.readings || [];
+    let labels   = readings.map(r=>r.timestamp?r.timestamp.split(" ")[1]||r.timestamp:"");
+    let temps    = readings.map(r=>r.temperature);
+    let bps      = readings.map(r=>r.bp);
+    let hrs      = readings.map(r=>r.heart_rate);
+    let spo2s    = readings.map(r=>r.spo2);
+
+    let ctx = document.getElementById("mChart").getContext("2d");
+    if(modalChart) modalChart.destroy();
+    modalChart = new Chart(ctx,{
+      type:"line",
+      data:{labels,datasets:[
+        {label:"Temp C",  data:temps, borderColor:"#00d4aa",tension:.4,fill:false,pointRadius:2},
+        {label:"BP mmHg", data:bps,   borderColor:"#0099ff",tension:.4,fill:false,pointRadius:2},
+        {label:"HR bpm",  data:hrs,   borderColor:"#00ee77",tension:.4,fill:false,pointRadius:2},
+        {label:"SpO2 %",  data:spo2s, borderColor:"#9966ff",tension:.4,fill:false,pointRadius:2}
+      ]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:"#b0d4f0",font:{family:"Oxanium",size:12}}}},
+        scales:{
+          x:{ticks:{color:"#2a4a6a",maxTicksLimit:10},grid:{color:"#0f2540"}},
+          y:{ticks:{color:"#2a4a6a"},grid:{color:"#0f2540"}}
+        }
+      }
+    });
+
+    // Raw readings table
+    document.getElementById("mReadings").innerHTML = readings.slice().reverse().map(r=>{
+      let rkBg = r.risk_score>=5?"color:var(--red)":r.risk_score>=3?"color:var(--yellow)":"color:var(--green)";
+      return `<tr>
+        <td class="ts">${r.timestamp||"-"}</td>
+        <td class="vital-val ${r.temperature>=39?'v-warn':'v-ok'}">${r.temperature}</td>
+        <td class="vital-val ${r.bp>160?'v-warn':'v-ok'}">${r.bp}</td>
+        <td class="vital-val ${r.heart_rate>110?'v-warn':'v-ok'}">${r.heart_rate}</td>
+        <td class="vital-val ${r.spo2<90?'v-warn':'v-ok'}">${r.spo2}</td>
+        <td style="${rkBg};font-family:'Share Tech Mono',monospace;font-size:11px">${r.risk_score}</td>
+      </tr>`;
+    }).join("");
+  })
+  .catch(()=>{
+    document.getElementById("mSub").innerText = "Error loading patient data.";
+  });
+}
+
+function closeModal(){
+  document.getElementById("patientModal").classList.remove("open");
+}
+
+// Close modal on background click
+document.getElementById("patientModal").addEventListener("click", function(e){
+  if(e.target === this) closeModal();
+});
+
+// ── EXPORT CSV ──
+function exportCSV(){
+  if(!filteredData.length){ alert("No data to export."); return; }
+  let headers = ["#","Patient ID","Bed","Admitted","Discharged","Avg Temp","Avg BP","Avg HR","Avg SpO2","Max Risk","Readings","Discharged By"];
+  let rows = filteredData.map((r,i)=>[
+    i+1, r.patient_id, "BED "+r.bed,
+    (r.admitted||"").replace("T"," "),
+    (r.discharged||"").replace("T"," "),
+    r.avg_temp, r.avg_bp, r.avg_hr, r.avg_spo2,
+    r.max_risk_score, r.total_readings, r.discharged_by||""
+  ]);
+  let csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+  let blob = new Blob([csv], {type:"text/csv"});
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "discharge_history_" + new Date().toISOString().split("T")[0] + ".csv";
+  a.click();
+}
+
+// ── INIT ──
+loadStats();
+loadHistory();
+
+// Enter key on filter inputs
+["fPid","fBed","fFrom","fTo"].forEach(id=>{
+  document.getElementById(id).addEventListener("keydown", e=>{
+    if(e.key==="Enter") applyFilter();
+  });
+});
+</script>
+</body>
+</html>

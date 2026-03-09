@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Patient History</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<h2>Temperature History (Last 20 Records)</h2>
+<canvas id="chart" width="800" height="400"></canvas>
+
+<script>
+fetch("/history_data")
+.then(response => response.json())
+.then(data => {
+    new Chart(document.getElementById("chart"), {
+        type: 'line',
+        data: {
+            labels: data.timestamps,
+            datasets: [{
+                label: "Temperature",
+                data: data.temps,
+                borderColor: "red",
+                fill:false
+            }]
+        }
+    });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hospital Monitoring Cloud</title>
+    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial; background:#f4f6f9; text-align:center; }
+        h1 { color:#003366; }
+        .card {
+            display:inline-block;
+            width:250px;
+            padding:15px;
+            margin:10px;
+            background:white;
+            border-radius:10px;
+            box-shadow:0 0 10px rgba(0,0,0,0.2);
+        }
+        .critical { background:#ffcccc; }
+    </style>
+</head>
+<body>
+
+<h1>🏥 CLOUD HOSPITAL MONITORING SYSTEM</h1>
+<h2>PROJECT PRESENTED BY RAGHAVENDRA & DHANUSH</h2>
+
+<div id="patients"></div>
+
+<script>
+var socket = io();
+var container = document.getElementById("patients");
+
+socket.on("nurse_update", function(data) {
+    var card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+        <h3>Bed ${data.bed}</h3>
+        🌡 Temp: ${data.temperature} °C <br>
+        🩺 BP: ${data.bp} mmHg <br>
+        ❤️ HR: ${data.heart_rate} bpm <br>
+        🫁 SpO2: ${data.spo2}% <br>
+        💧 Saline: ${data.saline}% 
+    `;
+    container.prepend(card);
+});
+
+socket.on("doctor_alert", function(data) {
+    alert("🚨 CRITICAL ALERT! Bed " + data.bed);
+});
+</script>
+
+</body>
+</html>

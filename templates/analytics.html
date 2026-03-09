@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Hospital Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--bg:#04080f;--surface:#070e1a;--card:#0a1525;--border:#0f2540;--cyan:#00d4aa;--blue:#0099ff;--red:#ff3355;--yellow:#ffcc00;--purple:#9966ff;--green:#00ee77;--orange:#ff8800;--dim:#1a3a5a;--text:#b0d4f0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;padding-bottom:50px;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(135deg,transparent,transparent 40px,rgba(0,212,170,.015) 40px,rgba(0,212,170,.015) 41px);pointer-events:none;z-index:0;}
+
+/* ── PRESENTER BAR ── */
+.pres-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:999;
+  text-align:center;padding:7px;
+  background:rgba(4,8,15,.95);border-top:1px solid rgba(0,212,170,.2);
+  font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:4px;
+}
+.pres-bar span{
+  background:linear-gradient(90deg,var(--cyan),var(--blue),var(--cyan));
+  background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:shimmer 3s linear infinite;
+}
+@keyframes shimmer{0%{background-position:0% center;}100%{background-position:200% center;}}
+
+/* ── HEADER ── */
+.hdr{
+  background:linear-gradient(90deg,var(--bg),var(--surface),var(--bg));
+  border-bottom:1px solid var(--border);
+  padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.brand h1{font-family:'Orbitron',monospace;font-size:15px;color:var(--cyan);letter-spacing:3px;}
+.brand p{font-size:10px;color:var(--dim);letter-spacing:2px;margin-top:3px;}
+.hdr-r{display:flex;gap:10px;align-items:center;}
+.live{width:7px;height:7px;background:var(--green);border-radius:50%;animation:blink 2s infinite;box-shadow:0 0 6px var(--green);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+.upd{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);}
+.hbtn{background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.3);color:var(--cyan);padding:7px 14px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;letter-spacing:1px;text-decoration:none;display:inline-block;transition:all .2s;}
+.hbtn:hover{background:rgba(0,212,170,.2);}
+.hbtn-red{background:rgba(255,51,85,.08);border-color:rgba(255,51,85,.3);color:var(--red);}
+.hbtn-red:hover{background:rgba(255,51,85,.18);}
+
+/* ── NAV TABS ── */
+.tabs{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;padding:0 28px;gap:4px;position:sticky;top:52px;z-index:99;
+}
+.tab{
+  padding:10px 18px;font-size:11px;font-weight:700;letter-spacing:2px;
+  cursor:pointer;color:var(--dim);border-bottom:2px solid transparent;
+  transition:all .2s;text-transform:uppercase;
+}
+.tab.active{color:var(--cyan);border-bottom-color:var(--cyan);}
+.tab:hover{color:var(--text);}
+
+/* ── PAGE SECTIONS ── */
+.page{display:none;padding:24px 28px;max-width:1500px;margin:0 auto;}
+.page.active{display:block;}
+
+/* ── KPI GRID ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:20px;}
+.kc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden;}
+.kc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;}
+.kc-cy::after{background:var(--cyan)}.kc-re::after{background:var(--red)}.kc-gr::after{background:var(--green)}
+.kc-ye::after{background:var(--yellow)}.kc-pu::after{background:var(--purple)}.kc-or::after{background:var(--orange)}
+.kc-bl::after{background:var(--blue)}
+.klb{font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:8px;}
+.kv{font-family:'Share Tech Mono',monospace;font-size:30px;line-height:1;margin-bottom:4px;}
+.ku{font-size:11px;color:var(--dim);}
+.kt{font-size:10px;margin-top:6px;}
+.tu{color:var(--red)}.td{color:var(--green)}.tf{color:var(--dim)}
+
+/* ── CHART GRIDS ── */
+.cg2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+.cg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px;}
+.cg-full{grid-column:1/-1;}
+.cc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;}
+.cc-title{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);letter-spacing:2px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;}
+.cc-title span{font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--dim);}
+.cw{height:200px;position:relative;}
+.cwt{height:260px;position:relative;}
+
+/* ── TABLES ── */
+.tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px;overflow-x:auto;}
+.tbl-title{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;margin-bottom:14px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:9px 10px;border-bottom:1px solid rgba(15,37,64,.5);font-family:'Share Tech Mono',monospace;vertical-align:middle;}
+tr:hover td{background:rgba(0,212,170,.025);}
+tr:last-child td{border-bottom:none;}
+.rp{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
+.rh{background:rgba(255,51,85,.2);color:var(--red);border:1px solid var(--red);}
+.rm{background:rgba(255,204,0,.15);color:var(--yellow);border:1px solid var(--yellow);}
+.rl{background:rgba(0,238,119,.1);color:var(--green);border:1px solid var(--green);}
+
+/* ── BED HEATMAP ── */
+.heatmap-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px;}
+.heatmap-grid{display:grid;grid-template-columns:repeat(20,1fr);gap:3px;margin-top:12px;}
+.hm-cell{
+  aspect-ratio:1;border-radius:3px;cursor:pointer;
+  transition:all .2s;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  font-size:7px;font-family:'Share Tech Mono',monospace;color:rgba(255,255,255,.5);
+}
+.hm-cell:hover{transform:scale(1.3);z-index:10;box-shadow:0 0 8px currentColor;}
+.hm-legend{display:flex;gap:12px;margin-top:10px;font-size:10px;color:var(--dim);align-items:center;flex-wrap:wrap;}
+.hm-swatch{width:14px;height:14px;border-radius:3px;display:inline-block;}
+
+/* ── DISCHARGE STATS ── */
+.ds-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;}
+.ds-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;}
+.ds-val{font-family:'Share Tech Mono',monospace;font-size:26px;color:var(--cyan);margin-bottom:4px;}
+.ds-lbl{font-size:10px;color:var(--dim);letter-spacing:1px;}
+
+/* ── SEARCH ── */
+.search-bar{
+  display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;
+}
+.s-input{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:8px 14px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:12px;
+  outline:none;transition:border-color .2s;
+}
+.s-input:focus{border-color:var(--cyan);}
+.s-btn{
+  background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--cyan);
+  padding:8px 16px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;
+  font-weight:700;font-size:12px;letter-spacing:1px;transition:all .2s;
+}
+.s-btn:hover{background:rgba(0,212,170,.25);}
+
+/* ── THRESHOLD EDITOR ── */
+.th-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;}
+.th-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;}
+.th-lbl{font-size:10px;letter-spacing:2px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;}
+.th-row{display:flex;align-items:center;gap:8px;}
+.th-val{font-family:'Share Tech Mono',monospace;font-size:22px;color:var(--yellow);flex:1;}
+.th-input{background:rgba(255,204,0,.06);border:1px solid rgba(255,204,0,.2);color:var(--yellow);padding:6px 10px;border-radius:5px;font-family:'Share Tech Mono',monospace;font-size:16px;width:80px;outline:none;}
+.th-input:focus{border-color:var(--yellow);}
+.th-save{background:rgba(255,204,0,.12);border:1px solid rgba(255,204,0,.3);color:var(--yellow);padding:6px 12px;border-radius:5px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;transition:all .2s;}
+.th-save:hover{background:rgba(255,204,0,.25);}
+
+/* ── TIMELINE ── */
+.tl-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(15,37,64,.5);}
+.tl-item:last-child{border-bottom:none;}
+.tl-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.tl-dot.cr{background:var(--red);box-shadow:0 0 6px var(--red);}
+.tl-dot.wa{background:var(--yellow);}
+.tl-dot.ok{background:var(--green);}
+.tl-main{font-size:12px;font-weight:600;margin-bottom:2px;}
+.tl-sub{font-size:11px;color:var(--dim);}
+
+/* ── SALINE GRID ── */
+.saline-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:10px;}
+.sal-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;}
+.sal-bed{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);margin-bottom:6px;}
+.sal-bar-wrap{background:rgba(0,0,0,.3);border-radius:4px;height:6px;overflow:hidden;margin-bottom:4px;}
+.sal-bar{height:100%;border-radius:4px;transition:width .5s;}
+.sal-val{font-family:'Share Tech Mono',monospace;font-size:11px;}
+</style>
+</head>
+<body>
+
+<div class="pres-bar">✦ &nbsp; PRESENTED BY &nbsp; <span>RAGHAVENDRA &amp; DHANUSH</span> &nbsp; ✦ &nbsp; CLOUD ICU MONITORING SYSTEM</div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="brand">
+    <h1>HOSPITAL ANALYTICS</h1>
+    <p>AI-POWERED ICU INTELLIGENCE DASHBOARD</p>
+  </div>
+  <div class="hdr-r">
+    <div class="live"></div>
+    <span class="upd" id="lu">Updating...</span>
+    <button class="hbtn" onclick="loadAll()">↻ REFRESH</button>
+    <a href="/nurse"   class="hbtn">NURSE</a>
+    <a href="/doctor"  class="hbtn">DOCTOR</a>
+    <a href="/history" class="hbtn">HISTORY</a>
+    <a href="/logout"  class="hbtn hbtn-red">LOGOUT</a>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('overview',this)">OVERVIEW</div>
+  <div class="tab" onclick="showTab('heatmap',this)">BED HEATMAP</div>
+  <div class="tab" onclick="showTab('discharge',this)">DISCHARGE STATS</div>
+  <div class="tab" onclick="showTab('saline',this)">SALINE MONITOR</div>
+  <div class="tab" onclick="showTab('search',this)">PATIENT SEARCH</div>
+  <div class="tab" onclick="showTab('thresholds',this)">THRESHOLDS</div>
+</div>
+
+<!-- ════════════════════════════════ TAB: OVERVIEW ════════════════════════════════ -->
+<div class="page active" id="tab-overview">
+
+  <div class="kpi-row">
+    <div class="kc kc-cy"><div class="klb">Avg Temperature</div><div class="kv" id="avgTemp" style="color:var(--cyan)">-</div><div class="ku">°C</div><div class="kt" id="tempTr"></div></div>
+    <div class="kc kc-or"><div class="klb">Avg Blood Pressure</div><div class="kv" id="avgBP" style="color:var(--orange)">-</div><div class="ku">mmHg</div><div class="kt" id="bpTr"></div></div>
+    <div class="kc kc-re"><div class="klb">Critical Cases</div><div class="kv" id="critC" style="color:var(--red)">-</div><div class="ku">Risk ≥ 5</div></div>
+    <div class="kc kc-gr"><div class="klb">Occupied Beds</div><div class="kv" id="occC" style="color:var(--green)">-</div><div class="ku">of 100</div></div>
+    <div class="kc kc-ye"><div class="klb">Avg Heart Rate</div><div class="kv" id="avgHR" style="color:var(--yellow)">-</div><div class="ku">bpm</div></div>
+    <div class="kc kc-pu"><div class="klb">Avg SpO2</div><div class="kv" id="avgS" style="color:var(--purple)">-</div><div class="ku">%</div></div>
+    <div class="kc kc-bl"><div class="klb">Total Discharged</div><div class="kv" id="totalDis" style="color:var(--blue)">-</div><div class="ku">all time</div></div>
+  </div>
+
+  <div class="cg2">
+    <div class="cc"><div class="cc-title">TEMPERATURE TREND <span>LAST 20</span></div><div class="cw"><canvas id="tc"></canvas></div></div>
+    <div class="cc"><div class="cc-title">BLOOD PRESSURE TREND <span>LAST 20</span></div><div class="cw"><canvas id="bc"></canvas></div></div>
+    <div class="cc"><div class="cc-title">HEART RATE TREND <span>LAST 20</span></div><div class="cw"><canvas id="hrc"></canvas></div></div>
+    <div class="cc"><div class="cc-title">SpO2 TREND <span>LAST 20</span></div><div class="cw"><canvas id="spc"></canvas></div></div>
+  </div>
+
+  <div class="cg3">
+    <div class="cc"><div class="cc-title">RISK DISTRIBUTION <span>ALL BEDS</span></div><div class="cw"><canvas id="rc"></canvas></div></div>
+    <div class="cc"><div class="cc-title">BED OCCUPANCY <span>CURRENT</span></div><div class="cw"><canvas id="oc"></canvas></div></div>
+    <div class="cc"><div class="cc-title">ALERTS FIRED <span>LAST 50 LOGS</span></div><div class="cw"><canvas id="ac"></canvas></div></div>
+  </div>
+
+  <div class="cc" style="margin-bottom:20px;">
+    <div class="cc-title">MULTI-VITAL OVERVIEW <span>LAST 20 READINGS</span></div>
+    <div class="cwt"><canvas id="mc"></canvas></div>
+  </div>
+
+  <div class="tbl-wrap">
+    <div class="tbl-title" style="color:var(--red)">🔴 HIGH-RISK PATIENTS — LIVE</div>
+    <table>
+      <thead><tr><th>Bed</th><th>Patient ID</th><th>Temp</th><th>BP</th><th>HR</th><th>SpO2</th><th>Risk</th><th>Time</th></tr></thead>
+      <tbody id="ct"><tr><td colspan="8" style="color:var(--dim);text-align:center;padding:20px">Loading...</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="cc">
+    <div class="cc-title" style="color:var(--orange)">RECENT SYSTEM LOGS</div>
+    <div id="tl"><p style="color:var(--dim);font-size:12px">Loading...</p></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ TAB: BED HEATMAP ════════════════════════════════ -->
+<div class="page" id="tab-heatmap">
+  <div class="heatmap-wrap">
+    <div class="cc-title">BED RISK HEATMAP — ALL 100 BEDS <span>Click a bed to view vitals</span></div>
+    <div class="heatmap-grid" id="hmGrid"></div>
+    <div class="hm-legend">
+      <span>Risk Level:</span>
+      <span><span class="hm-swatch" style="background:rgba(0,238,119,.5)"></span> Low (0-2)</span>
+      <span><span class="hm-swatch" style="background:rgba(255,204,0,.5)"></span> Moderate (3-4)</span>
+      <span><span class="hm-swatch" style="background:rgba(255,51,85,.6)"></span> Critical (5+)</span>
+      <span><span class="hm-swatch" style="background:rgba(26,58,90,.4)"></span> Vacant</span>
+    </div>
+  </div>
+  <div class="cc" id="hmDetail" style="display:none;margin-bottom:20px;">
+    <div class="cc-title" id="hmDetailTitle">BED DETAIL</div>
+    <div class="cwt"><canvas id="hmChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ TAB: DISCHARGE STATS ════════════════════════════════ -->
+<div class="page" id="tab-discharge">
+  <div class="ds-grid">
+    <div class="ds-card"><div class="ds-val" id="dsTot">-</div><div class="ds-lbl">Total Discharged</div></div>
+    <div class="ds-card"><div class="ds-val" id="dsUniq" style="color:var(--blue)">-</div><div class="ds-lbl">Unique Patients</div></div>
+    <div class="ds-card"><div class="ds-val" id="dsHR" style="color:var(--red)">-</div><div class="ds-lbl">High Risk Cases</div></div>
+    <div class="ds-card"><div class="ds-val" id="dsTemp" style="color:var(--orange)">-</div><div class="ds-lbl">Avg Temp (°C)</div></div>
+    <div class="ds-card"><div class="ds-val" id="dsHRt" style="color:var(--yellow)">-</div><div class="ds-lbl">Avg Heart Rate</div></div>
+    <div class="ds-card"><div class="ds-val" id="dsSpo" style="color:var(--purple)">-</div><div class="ds-lbl">Avg SpO2 %</div></div>
+  </div>
+  <div class="cg2">
+    <div class="cc">
+      <div class="cc-title">BUSIEST BEDS <span>BY DISCHARGE COUNT</span></div>
+      <div class="cw"><canvas id="busiestChart"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-title">DISCHARGE RISK BREAKDOWN</div>
+      <div class="cw"><canvas id="disRiskChart"></canvas></div>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <div class="tbl-title" style="color:var(--cyan)">RECENT DISCHARGE RECORDS</div>
+    <table>
+      <thead><tr><th>Patient ID</th><th>Bed</th><th>Admitted</th><th>Discharged</th><th>Avg Temp</th><th>Avg BP</th><th>Avg HR</th><th>Avg SpO2</th><th>Max Risk</th><th>Readings</th><th>By</th></tr></thead>
+      <tbody id="disTbl"><tr><td colspan="11" style="color:var(--dim);text-align:center;padding:20px">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ TAB: SALINE ════════════════════════════════ -->
+<div class="page" id="tab-saline">
+  <div class="kpi-row" style="margin-bottom:16px;">
+    <div class="kc kc-bl"><div class="klb">Avg Saline Level</div><div class="kv" id="avgSaline" style="color:var(--blue)">-</div><div class="ku">%</div></div>
+    <div class="kc kc-re"><div class="klb">Low Saline Alerts</div><div class="kv" id="lowSaline" style="color:var(--red)">-</div><div class="ku">Below 30%</div></div>
+    <div class="kc kc-gr"><div class="klb">Full Saline Beds</div><div class="kv" id="fullSaline" style="color:var(--green)">-</div><div class="ku">Above 70%</div></div>
+  </div>
+  <div class="cc" style="margin-bottom:20px;">
+    <div class="cc-title" style="color:var(--blue)">SALINE LEVELS — ALL OCCUPIED BEDS <span>Live from last reading</span></div>
+    <div class="saline-grid" id="salineGrid">
+      <p style="color:var(--dim);font-size:12px">Loading saline data...</p>
+    </div>
+  </div>
+  <div class="cc">
+    <div class="cc-title">SALINE TREND — LAST 20 READINGS</div>
+    <div class="cw"><canvas id="salineChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ TAB: PATIENT SEARCH ════════════════════════════════ -->
+<div class="page" id="tab-search">
+  <div class="search-bar">
+    <input class="s-input" id="searchPid" placeholder="Search by Patient ID (e.g. A3F2B1C9)" style="width:280px" onkeydown="if(event.key==='Enter')searchPatient()">
+    <input class="s-input" id="searchBed" placeholder="Bed number" type="number" style="width:120px" onkeydown="if(event.key==='Enter')searchPatient()">
+    <button class="s-btn" onclick="searchPatient()">SEARCH</button>
+    <button class="s-btn" style="background:rgba(26,58,90,.3);border-color:var(--dim);color:var(--dim);" onclick="clearSearch()">CLEAR</button>
+    <span id="searchCount" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim);align-self:center;margin-left:auto;"></span>
+  </div>
+  <div class="tbl-wrap">
+    <div class="tbl-title" style="color:var(--purple)">PATIENT LOOKUP — DISCHARGE REGISTRY</div>
+    <table>
+      <thead><tr><th>Patient ID</th><th>Bed</th><th>Admitted</th><th>Discharged</th><th>Avg Temp</th><th>Avg BP</th><th>Avg HR</th><th>Avg SpO2</th><th>Max Risk</th><th>Readings</th></tr></thead>
+      <tbody id="searchTbl"><tr><td colspan="10" style="color:var(--dim);text-align:center;padding:20px">Enter a Patient ID or Bed number to search</td></tr></tbody>
+    </table>
+  </div>
+  <!-- live beds search -->
+  <div class="tbl-wrap" style="margin-top:16px;">
+    <div class="tbl-title" style="color:var(--green)">CURRENT BED STATUS</div>
+    <table>
+      <thead><tr><th>Bed</th><th>Status</th><th>Patient ID</th><th>Admitted</th></tr></thead>
+      <tbody id="liveTbl"><tr><td colspan="4" style="color:var(--dim);text-align:center;padding:16px">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ TAB: THRESHOLDS ════════════════════════════════ -->
+<div class="page" id="tab-thresholds">
+  <div class="cc" style="margin-bottom:20px;">
+    <div class="cc-title" style="color:var(--yellow)">ALERT THRESHOLD CONFIGURATION <span>Changes affect AI risk scoring</span></div>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:16px;">Adjust the thresholds below. When a patient's vitals exceed these values, the risk score increases and alerts are triggered.</p>
+    <div class="th-grid">
+      <div class="th-card">
+        <div class="th-lbl">🌡 Temperature Threshold (°C)</div>
+        <div class="th-row">
+          <div class="th-val" id="thTempVal">39</div>
+          <input class="th-input" id="thTemp" type="number" step="0.1" value="39" min="36" max="42">
+          <button class="th-save" onclick="saveThreshold()">SAVE</button>
+        </div>
+        <div style="font-size:10px;color:var(--dim);margin-top:8px;">Risk +2 if above this value. Also +1 if ≥ 38°C.</div>
+      </div>
+      <div class="th-card">
+        <div class="th-lbl">🩺 Blood Pressure Threshold (mmHg)</div>
+        <div class="th-row">
+          <div class="th-val" id="thBPVal">160</div>
+          <input class="th-input" id="thBP" type="number" step="1" value="160" min="100" max="220" style="color:var(--orange);border-color:rgba(255,136,0,.3);">
+          <button class="th-save" style="color:var(--orange);border-color:rgba(255,136,0,.3);" onclick="saveThreshold()">SAVE</button>
+        </div>
+        <div style="font-size:10px;color:var(--dim);margin-top:8px;">Risk +2 if blood pressure exceeds this value.</div>
+      </div>
+      <div class="th-card">
+        <div class="th-lbl">🫁 SpO2 Threshold (%)</div>
+        <div class="th-row">
+          <div class="th-val" id="thSpoVal" style="color:var(--purple)">90</div>
+          <input class="th-input" id="thSpo" type="number" step="1" value="90" min="70" max="98" style="color:var(--purple);border-color:rgba(153,102,255,.3);">
+          <button class="th-save" style="color:var(--purple);border-color:rgba(153,102,255,.3);" onclick="saveThreshold()">SAVE</button>
+        </div>
+        <div style="font-size:10px;color:var(--dim);margin-top:8px;">Risk +3 if SpO2 drops below this value.</div>
+      </div>
+    </div>
+    <div id="thMsg" style="font-family:'Share Tech Mono',monospace;font-size:12px;margin-top:12px;min-height:18px;"></div>
+  </div>
+
+  <!-- Risk Score Explanation -->
+  <div class="cc">
+    <div class="cc-title" style="color:var(--cyan)">HOW RISK SCORES ARE CALCULATED</div>
+    <table style="margin-top:8px;">
+      <thead><tr><th>Condition</th><th>Points Added</th><th>Threshold</th></tr></thead>
+      <tbody id="riskTable">
+        <tr><td>Temperature ≥ 38°C</td><td style="color:var(--yellow)">+1</td><td style="color:var(--dim)">Fixed</td></tr>
+        <tr><td>Temperature ≥ Threshold</td><td style="color:var(--yellow)">+2</td><td id="rtTemp" style="color:var(--cyan)">39°C</td></tr>
+        <tr><td>BP > Threshold</td><td style="color:var(--orange)">+2</td><td id="rtBP" style="color:var(--cyan)">160 mmHg</td></tr>
+        <tr><td>SpO2 &lt; Threshold</td><td style="color:var(--red)">+3</td><td id="rtSpo" style="color:var(--cyan)">90%</td></tr>
+        <tr><td>Heart Rate > 110 bpm</td><td style="color:var(--green)">+1</td><td style="color:var(--dim)">Fixed</td></tr>
+        <tr><td style="border:none;padding-top:12px;color:var(--dim)">Maximum possible score</td><td style="border:none;padding-top:12px;font-size:16px;color:var(--red)">9</td><td style="border:none"></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+var charts={}, prev={}, allBedData=[], allDischarge=[], allLogs=[];
+var hmChart=null;
+
+// ── TAB SWITCHING ──
+function showTab(id, el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  if(id==='heatmap') renderHeatmap();
+  if(id==='discharge') loadDischarge();
+  if(id==='saline') loadSaline();
+  if(id==='search') loadLiveBeds();
+  if(id==='thresholds') loadThresholds();
+}
+
+// ── LOAD ALL (overview) ──
+function loadAll(){
+  loadAnalytics();loadBeds();loadLogs();
+  document.getElementById('lu').innerText='Updated: '+new Date().toLocaleTimeString();
+}
+
+function loadAnalytics(){
+  fetch('/analytics_data').then(r=>r.json()).then(d=>{
+    set('avgTemp',d.avg_temp,'var(--cyan)');
+    set('avgBP',d.avg_bp,'var(--orange)');
+    set('critC',d.critical_count,'var(--red)');
+    set('avgHR',d.avg_hr||'-','var(--yellow)');
+    set('avgS',d.avg_spo2||'-','var(--purple)');
+    trend('tempTr',d.avg_temp,prev.avg_temp,'°C');
+    trend('bpTr',d.avg_bp,prev.avg_bp,'mmHg');
+    Object.assign(prev,d);
+    renderRiskChart(d);
+    loadVitals();
+  });
+  // Discharge total
+  fetch('/discharge_history/stats').then(r=>r.json()).then(d=>{
+    set('totalDis',d.total_discharged,'var(--blue)');
+  }).catch(()=>{});
+}
+
+function set(id,val,col){
+  var el=document.getElementById(id);
+  if(el){el.innerText=val;if(col)el.style.color=col;}
+}
+function trend(id,curr,prev2,unit){
+  var el=document.getElementById(id);if(!el)return;
+  if(!prev2){el.innerHTML="<span class='tf'>Baseline</span>";return;}
+  var diff=(curr-prev2).toFixed(1);
+  if(curr>prev2) el.innerHTML="<span class='tu'>▲ +"+diff+" "+unit+"</span>";
+  else if(curr<prev2) el.innerHTML="<span class='td'>▼ "+diff+" "+unit+"</span>";
+  else el.innerHTML="<span class='tf'>Stable</span>";
+}
+
+function loadVitals(){
+  fetch('/system_logs').then(r=>r.json()).then(data=>{
+    allLogs=data.logs||[];
+    var logs=allLogs.slice(-20).reverse();
+    var lb=logs.map(r=>r[9]?(r[9].split(' ')[1]||r[9]).substring(0,5):'?');
+    var tp=logs.map(r=>r[3]),bp=logs.map(r=>r[4]),hr=logs.map(r=>r[5]),sp=logs.map(r=>r[6]);
+    line('tc',lb,[{label:'Temp °C',data:tp,borderColor:'#00d4aa',bg:'rgba(0,212,170,.06)'}]);
+    line('bc',lb,[{label:'BP mmHg',data:bp,borderColor:'#ff8800',bg:'rgba(255,136,0,.06)'}]);
+    line('hrc',lb,[{label:'HR bpm',data:hr,borderColor:'#ffcc00',bg:'rgba(255,204,0,.06)'}]);
+    line('spc',lb,[{label:'SpO2 %',data:sp,borderColor:'#9966ff',bg:'rgba(153,102,255,.06)'}]);
+    multi('mc',lb,tp,bp,hr,sp);
+
+    // Alerts chart (pie: critical/moderate/stable)
+    var crit=allLogs.filter(r=>r[8]>=5).length;
+    var mod=allLogs.filter(r=>r[8]>=3&&r[8]<5).length;
+    var stab=allLogs.filter(r=>r[8]<3).length;
+    doughnut('ac',['Critical','Moderate','Stable'],[crit,mod,stab],['#ff3355','#ffcc00','#00ee77']);
+
+    renderCrit(allLogs.filter(r=>r[8]>=5).slice(-10));
+    renderTimeline(allLogs.slice(0,8));
+  });
+}
+
+// ── CHART BUILDERS ──
+function line(id,lb,ds){
+  var ctx=document.getElementById(id).getContext('2d');
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(ctx,{type:'line',data:{labels:lb,datasets:ds.map(d=>({label:d.label,data:d.data,borderColor:d.borderColor,backgroundColor:d.bg,tension:.4,fill:true,pointRadius:2,borderWidth:1.5}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b0d4f0',font:{family:'Rajdhani',size:12}}}},scales:{x:{ticks:{color:'#1a3a5a',maxTicksLimit:8},grid:{color:'#0f2540'}},y:{ticks:{color:'#1a3a5a'},grid:{color:'#0f2540'}}}}});
+}
+function multi(id,lb,tp,bp,hr,sp){
+  var ctx=document.getElementById(id).getContext('2d');
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(ctx,{type:'line',data:{labels:lb,datasets:[
+    {label:'Temp °C',data:tp,borderColor:'#00d4aa',tension:.4,fill:false,pointRadius:2,borderWidth:1.5},
+    {label:'BP mmHg',data:bp,borderColor:'#ff8800',tension:.4,fill:false,pointRadius:2,borderWidth:1.5},
+    {label:'HR bpm',data:hr,borderColor:'#ffcc00',tension:.4,fill:false,pointRadius:2,borderWidth:1.5},
+    {label:'SpO2 %',data:sp,borderColor:'#9966ff',tension:.4,fill:false,pointRadius:2,borderWidth:1.5}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b0d4f0',font:{family:'Rajdhani',size:12}}}},scales:{x:{ticks:{color:'#1a3a5a',maxTicksLimit:10},grid:{color:'#0f2540'}},y:{ticks:{color:'#1a3a5a'},grid:{color:'#0f2540'}}}}});
+}
+function doughnut(id,lb,dt,cols){
+  var ctx=document.getElementById(id).getContext('2d');
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(ctx,{type:'doughnut',data:{labels:lb,datasets:[{data:dt,backgroundColor:cols.map(c=>c+'55'),borderColor:cols,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{labels:{color:'#b0d4f0',font:{family:'Rajdhani',size:12}}}}}});
+}
+function bar(id,lb,dt,col,title){
+  var ctx=document.getElementById(id).getContext('2d');
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(ctx,{type:'bar',data:{labels:lb,datasets:[{label:title||'',data:dt,backgroundColor:col+'44',borderColor:col,borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#1a3a5a'},grid:{display:false}},y:{ticks:{color:'#1a3a5a'},grid:{color:'#0f2540'}}}}});
+}
+function renderRiskChart(d){
+  var ctx=document.getElementById('rc').getContext('2d');
+  if(charts.rc) charts.rc.destroy();
+  var crit=d.critical_count||0,mod=Math.floor((100-crit)*0.2),stab=100-crit-mod;
+  charts.rc=new Chart(ctx,{type:'bar',data:{labels:['Stable (0-2)','Moderate (3-4)','Critical (5+)'],datasets:[{data:[stab,mod,crit],backgroundColor:['rgba(0,238,119,.3)','rgba(255,204,0,.3)','rgba(255,51,85,.4)'],borderColor:['#00ee77','#ffcc00','#ff3355'],borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#1a3a5a'},grid:{display:false}},y:{ticks:{color:'#1a3a5a'},grid:{color:'#0f2540'}}}}});
+}
+
+// ── BEDS ──
+function loadBeds(){
+  fetch('/bed_status').then(r=>r.json()).then(beds=>{
+    allBedData=beds;
+    var occ=beds.filter(b=>b.status==='OCCUPIED').length,va=100-occ;
+    set('occC',occ,'var(--green)');
+    doughnut('oc',['Occupied','Vacant'],[occ,va],['#00ee77','#1a3a5a']);
+  });
+}
+
+// ── HEATMAP ──
+function renderHeatmap(){
+  if(!allBedData.length){fetch('/bed_status').then(r=>r.json()).then(beds=>{allBedData=beds;buildHeatmap();});}
+  else buildHeatmap();
+}
+function buildHeatmap(){
+  var grid=document.getElementById('hmGrid');grid.innerHTML='';
+  allBedData.forEach(function(b){
+    var cell=document.createElement('div');cell.className='hm-cell';
+    // Find last risk for this bed from logs
+    var bedLog=allLogs.filter(l=>l[1]===b.bed);
+    var risk=bedLog.length?bedLog[0][8]:null;
+    var col,textCol;
+    if(b.status==='VACANT'){col='rgba(26,58,90,.4)';textCol='#1a3a5a';}
+    else if(risk===null){col='rgba(0,212,170,.2)';textCol='#00d4aa';}
+    else if(risk>=5){col='rgba(255,51,85,.7)';textCol='#ff3355';}
+    else if(risk>=3){col='rgba(255,204,0,.5)';textCol='#ffcc00';}
+    else{col='rgba(0,238,119,.4)';textCol='#00ee77';}
+    cell.style.background=col;cell.style.color=textCol;
+    cell.style.border='1px solid '+textCol+'44';
+    cell.title='Bed '+b.bed+(b.patient_id?' | '+b.patient_id:'')+(risk!==null?' | Risk: '+risk:'');
+    cell.innerText=b.bed;
+    cell.onclick=function(){ openHmDetail(b.bed,b.patient_id,risk); };
+    grid.appendChild(cell);
+  });
+}
+function openHmDetail(bed,pid,risk){
+  document.getElementById('hmDetail').style.display='block';
+  document.getElementById('hmDetailTitle').innerText='BED '+bed+(pid?' — '+pid:'')+(risk!==null?' — Risk: '+risk:'');
+  fetch('/bed_history/'+bed).then(r=>r.json()).then(data=>{
+    var ctx=document.getElementById('hmChart').getContext('2d');
+    if(hmChart) hmChart.destroy();
+    if(!data.time||!data.time.length){ return; }
+    hmChart=new Chart(ctx,{type:'line',data:{labels:data.time,datasets:[
+      {label:'Temp °C',data:data.temperature,borderColor:'#00d4aa',tension:.4,fill:false,pointRadius:2},
+      {label:'BP mmHg',data:data.bp,borderColor:'#ff8800',tension:.4,fill:false,pointRadius:2},
+      {label:'HR bpm',data:data.hr,borderColor:'#ffcc00',tension:.4,fill:false,pointRadius:2},
+      {label:'SpO2 %',data:data.spo2,borderColor:'#9966ff',tension:.4,fill:false,pointRadius:2}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b0d4f0',font:{family:'Rajdhani',size:12}}}},scales:{x:{ticks:{color:'#1a3a5a'},grid:{color:'#0f2540'}},y:{ticks:{color:'#1a3a5a'},grid:{color:'#0f2540'}}}}});
+  });
+}
+
+// ── DISCHARGE STATS ──
+function loadDischarge(){
+  fetch('/discharge_history/stats').then(r=>r.json()).then(d=>{
+    set('dsTot',d.total_discharged,'var(--cyan)');
+    set('dsUniq',d.unique_patients,'var(--blue)');
+    set('dsHR',d.high_risk_cases,'var(--red)');
+    set('dsTemp',d.overall_avg_temp,'var(--orange)');
+    set('dsHRt',d.overall_avg_hr,'var(--yellow)');
+    set('dsSpo',d.overall_avg_spo2,'var(--purple)');
+    if(d.busiest_beds&&d.busiest_beds.length){
+      var bl=d.busiest_beds.map(b=>'Bed '+b.bed);
+      var bd=d.busiest_beds.map(b=>b.count);
+      bar('busiestChart',bl,bd,'#0099ff','Discharges');
+    }
+  }).catch(()=>{});
+  fetch('/discharge_history').then(r=>r.json()).then(d=>{
+    allDischarge=d.history||[];
+    var tbl=document.getElementById('disTbl');
+    if(!allDischarge.length){tbl.innerHTML='<tr><td colspan="11" style="color:var(--dim);text-align:center;padding:20px">No discharge records yet</td></tr>';return;}
+    var crit=allDischarge.filter(r=>r.max_risk_score>=5).length;
+    var mod=allDischarge.filter(r=>r.max_risk_score>=3&&r.max_risk_score<5).length;
+    var stab=allDischarge.filter(r=>r.max_risk_score<3).length;
+    doughnut('disRiskChart',['Critical','Moderate','Stable'],[crit,mod,stab],['#ff3355','#ffcc00','#00ee77']);
+    tbl.innerHTML=allDischarge.slice(0,30).map(r=>{
+      var rk=r.max_risk_score,rc=rk>=5?'rh':rk>=3?'rm':'rl';
+      return '<tr>'
+        +'<td style="color:var(--cyan)">'+r.patient_id+'</td>'
+        +'<td style="color:var(--blue)">BED '+r.bed+'</td>'
+        +'<td style="color:var(--dim);font-size:10px">'+(r.admitted||'-').split('.')[0]+'</td>'
+        +'<td style="color:var(--dim);font-size:10px">'+(r.discharged||'-').split('.')[0]+'</td>'
+        +'<td style="color:'+(r.avg_temp>=39?'var(--red)':'inherit')+'">'+r.avg_temp+'</td>'
+        +'<td style="color:'+(r.avg_bp>160?'var(--red)':'inherit')+'">'+r.avg_bp+'</td>'
+        +'<td style="color:'+(r.avg_hr>110?'var(--yellow)':'inherit')+'">'+r.avg_hr+'</td>'
+        +'<td style="color:'+(r.avg_spo2<90?'var(--red)':'inherit')+'">'+r.avg_spo2+'%</td>'
+        +'<td><span class="rp '+rc+'">'+rk+'</span></td>'
+        +'<td style="color:var(--dim)">'+r.total_readings+'</td>'
+        +'<td style="color:var(--dim);font-size:10px">'+(r.discharged_by||'-')+'</td>'
+        +'</tr>';
+    }).join('');
+  }).catch(()=>{});
+}
+
+// ── SALINE ──
+function loadSaline(){
+  fetch('/system_logs').then(r=>r.json()).then(data=>{
+    var logs=data.logs||[];
+    // Get latest reading per bed
+    var latestByBed={};
+    logs.forEach(function(r){
+      if(!latestByBed[r[1]]) latestByBed[r[1]]=r;
+    });
+    var beds=Object.values(latestByBed);
+    var levels=beds.map(b=>b[7]||0);
+    var avg=levels.length?Math.round(levels.reduce((a,b)=>a+b,0)/levels.length):0;
+    var low=levels.filter(v=>v<30).length;
+    var full=levels.filter(v=>v>=70).length;
+    set('avgSaline',avg,'var(--blue)');
+    set('lowSaline',low,'var(--red)');
+    set('fullSaline',full,'var(--green)');
+
+    var grid=document.getElementById('salineGrid');
+    if(!beds.length){grid.innerHTML='<p style="color:var(--dim);font-size:12px">No data</p>';return;}
+    grid.innerHTML=beds.map(function(b){
+      var sal=b[7]||0;
+      var col=sal<30?'#ff3355':sal<70?'#ffcc00':'#00ee77';
+      return '<div class="sal-card">'
+        +'<div class="sal-bed">BED '+b[1]+'</div>'
+        +'<div class="sal-bar-wrap"><div class="sal-bar" style="width:'+sal+'%;background:'+col+'"></div></div>'
+        +'<div class="sal-val" style="color:'+col+'">'+sal+'%</div>'
+        +'</div>';
+    }).join('');
+
+    // Saline trend chart
+    var recent=logs.slice(-20).reverse();
+    var lb=recent.map(r=>r[9]?(r[9].split(' ')[1]||r[9]).substring(0,5):'?');
+    line('salineChart',lb,[{label:'Saline %',data:recent.map(r=>r[7]),borderColor:'#0099ff',bg:'rgba(0,153,255,.06)'}]);
+  });
+}
+
+// ── PATIENT SEARCH ──
+function searchPatient(){
+  var pid=document.getElementById('searchPid').value.trim();
+  var bed=document.getElementById('searchBed').value.trim();
+  var p=new URLSearchParams();
+  if(pid) p.append('patient_id',pid);
+  if(bed) p.append('bed',bed);
+  fetch('/discharge_history?'+p.toString()).then(r=>r.json()).then(d=>{
+    var rows=d.history||[];
+    document.getElementById('searchCount').innerText=rows.length+' record'+(rows.length!==1?'s':'');
+    var tbl=document.getElementById('searchTbl');
+    if(!rows.length){tbl.innerHTML='<tr><td colspan="10" style="color:var(--dim);text-align:center;padding:20px">No records found</td></tr>';return;}
+    tbl.innerHTML=rows.map(r=>{
+      var rk=r.max_risk_score,rc=rk>=5?'rh':rk>=3?'rm':'rl';
+      return '<tr>'
+        +'<td style="color:var(--cyan)">'+r.patient_id+'</td>'
+        +'<td style="color:var(--blue)">BED '+r.bed+'</td>'
+        +'<td style="color:var(--dim);font-size:10px">'+(r.admitted||'-').split('.')[0]+'</td>'
+        +'<td style="color:var(--dim);font-size:10px">'+(r.discharged||'-').split('.')[0]+'</td>'
+        +'<td>'+r.avg_temp+'</td><td>'+r.avg_bp+'</td><td>'+r.avg_hr+'</td>'
+        +'<td>'+r.avg_spo2+'%</td>'
+        +'<td><span class="rp '+rc+'">'+rk+'</span></td>'
+        +'<td style="color:var(--dim)">'+r.total_readings+'</td>'
+        +'</tr>';
+    }).join('');
+  });
+}
+function clearSearch(){
+  document.getElementById('searchPid').value='';
+  document.getElementById('searchBed').value='';
+  document.getElementById('searchCount').innerText='';
+  document.getElementById('searchTbl').innerHTML='<tr><td colspan="10" style="color:var(--dim);text-align:center;padding:20px">Enter a Patient ID or Bed number to search</td></tr>';
+}
+function loadLiveBeds(){
+  fetch('/bed_status').then(r=>r.json()).then(beds=>{
+    allBedData=beds;
+    var tbl=document.getElementById('liveTbl');
+    tbl.innerHTML=beds.map(b=>{
+      var isOcc=b.status==='OCCUPIED';
+      return '<tr>'
+        +'<td style="color:var(--blue)">BED '+b.bed+'</td>'
+        +'<td><span class="rp" style="background:'+(isOcc?'rgba(0,238,119,.15)':'rgba(255,204,0,.12)')
+          +';color:'+(isOcc?'var(--green)':'var(--yellow)')
+          +';border:1px solid '+(isOcc?'var(--green)':'var(--yellow)')+'">'+b.status+'</span></td>'
+        +'<td style="color:var(--cyan)">'+(b.patient_id||'—')+'</td>'
+        +'<td style="color:var(--dim);font-size:10px">'+(b.admitted||'—').split('.')[0]+'</td>'
+        +'</tr>';
+    }).join('');
+  });
+}
+
+// ── THRESHOLDS ──
+function loadThresholds(){
+  // Read from current analytics data as proxy (thresholds not exposed via API by default)
+  // Just show current input values
+  document.getElementById('rtTemp').innerText=document.getElementById('thTemp').value+'°C';
+  document.getElementById('rtBP').innerText=document.getElementById('thBP').value+' mmHg';
+  document.getElementById('rtSpo').innerText=document.getElementById('thSpo').value+'%';
+}
+function saveThreshold(){
+  var temp=parseFloat(document.getElementById('thTemp').value);
+  var bp=parseInt(document.getElementById('thBP').value);
+  var spo=parseInt(document.getElementById('thSpo').value);
+  var msg=document.getElementById('thMsg');
+  // Update display values
+  document.getElementById('thTempVal').innerText=temp;
+  document.getElementById('thBPVal').innerText=bp;
+  document.getElementById('thSpoVal').innerText=spo;
+  loadThresholds();
+  // Note: actual server threshold update needs a backend route /admin/thresholds POST
+  // For now show info message
+  msg.style.color='var(--yellow)';
+  msg.innerText='ℹ Thresholds updated locally. To persist, add POST /admin/thresholds to server.py.';
+  setTimeout(()=>{msg.innerText='';},5000);
+}
+
+// ── HIGH RISK TABLE ──
+function renderCrit(rows){
+  var tb=document.getElementById('ct');
+  if(!rows.length){tb.innerHTML='<tr><td colspan="8" style="color:var(--green);text-align:center;padding:16px">No critical patients currently</td></tr>';return;}
+  tb.innerHTML=rows.map(r=>{
+    var rk=r[8],rc=rk>=5?'rh':rk>=3?'rm':'rl';
+    return '<tr>'
+      +'<td style="color:var(--cyan)">BED '+r[1]+'</td>'
+      +'<td style="color:var(--purple)">'+(r[2]||'—')+'</td>'
+      +'<td style="color:'+(r[3]>=39?'var(--red)':'inherit')+'">'+r[3]+'°</td>'
+      +'<td style="color:'+(r[4]>160?'var(--red)':'inherit')+'">'+r[4]+'</td>'
+      +'<td style="color:'+(r[5]>110?'var(--yellow)':'inherit')+'">'+r[5]+'</td>'
+      +'<td style="color:'+(r[6]<90?'var(--red)':'inherit')+'">'+r[6]+'%</td>'
+      +'<td><span class="rp '+rc+'">'+rk+'</span></td>'
+      +'<td style="color:var(--dim);font-size:10px">'+(r[9]||'—')+'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+// ── TIMELINE ──
+function renderTimeline(logs){
+  var el=document.getElementById('tl');
+  if(!logs.length){el.innerHTML='<p style="color:var(--dim);font-size:12px">No logs.</p>';return;}
+  el.innerHTML=logs.map(r=>{
+    var rk=r[8],dc=rk>=5?'cr':rk>=3?'wa':'ok',lb=rk>=5?'CRITICAL':rk>=3?'MODERATE':'STABLE';
+    return '<div class="tl-item"><div class="tl-dot '+dc+'"></div><div>'
+      +'<div class="tl-main">Bed '+r[1]+' — '+lb+(r[2]?' <span style="color:var(--purple);font-family:\'Share Tech Mono\',monospace;font-size:10px">'+r[2]+'</span>':'')+'</div>'
+      +'<div class="tl-sub">Temp '+r[3]+'° | BP '+r[4]+' | HR '+r[5]+' | SpO2 '+r[6]+'% | Risk '+rk+' | '+(r[9]||'—')+'</div>'
+      +'</div></div>';
+  }).join('');
+}
+
+// ── INIT ──
+loadAll();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

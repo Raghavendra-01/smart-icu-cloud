@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ICU Doctor Emergency Console</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg:#0a0a0f;--panel:#0f0f1a;--border:#1a1a2e;
+      --red:#ff2d55;--orange:#ff9500;--yellow:#ffd60a;
+      --green:#30d158;--cyan:#64d2ff;--purple:#bf5af2;--blue:#0a84ff;
+      --dim:#3a3a5c;--text:#e8e8f0;
+      --mono:'Share Tech Mono',monospace;--ui:'Rajdhani',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{height:100%;overflow:hidden;}
+    body{background:var(--bg);color:var(--text);font-family:var(--ui);display:flex;flex-direction:column;}
+
+    /* TOPBAR */
+    .topbar{
+      flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+      padding:12px 24px;background:rgba(15,15,26,.97);
+      border-bottom:2px solid var(--red);z-index:100;
+    }
+    .topbar-left h1{font-size:20px;font-weight:700;letter-spacing:3px;color:var(--red);text-transform:uppercase;}
+    .topbar-left p{font-size:11px;color:var(--dim);letter-spacing:2px;margin-top:2px;}
+    .topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .action-btn{
+      padding:7px 14px;border-radius:6px;font-family:var(--ui);
+      font-weight:700;font-size:12px;letter-spacing:1px;
+      cursor:pointer;border:1px solid;transition:all .2s;text-transform:uppercase;
+      background:transparent;white-space:nowrap;text-decoration:none;display:inline-block;
+    }
+    .btn-red   {border-color:var(--red);   color:var(--red);}   .btn-red:hover   {background:rgba(255,45,85,.15);}
+    .btn-orange{border-color:var(--orange);color:var(--orange);} .btn-orange:hover{background:rgba(255,149,0,.15);}
+    .btn-purple{border-color:var(--purple);color:var(--purple);} .btn-purple:hover{background:rgba(191,90,242,.15);}
+    .btn-cyan  {border-color:var(--cyan);  color:var(--cyan);}   .btn-cyan:hover  {background:rgba(100,210,255,.15);}
+    .btn-dim   {border-color:var(--dim);   color:var(--dim);}    .btn-dim:hover   {background:rgba(255,255,255,.05);}
+
+    /* ALERT BANNER */
+    .alert-banner{
+      flex-shrink:0;background:linear-gradient(90deg,rgba(255,45,85,.18),rgba(255,45,85,.04));
+      border-left:3px solid var(--red);padding:9px 24px;
+      font-family:var(--mono);font-size:12px;color:var(--red);
+      display:none;animation:pulse 1.2s infinite;
+    }
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+    /* BODY WRAP */
+    .body-wrap{flex:1;display:flex;overflow:hidden;min-height:0;}
+
+    /* ALERT PANEL */
+    .alert-panel{
+      width:420px;flex-shrink:0;
+      background:var(--panel);border-right:1px solid rgba(255,45,85,.2);
+      display:flex;flex-direction:column;overflow:hidden;
+      transition:width .25s ease;
+    }
+    .alert-panel.collapsed{width:50px;}
+
+    .ap-header{
+      flex-shrink:0;padding:12px 14px;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;
+      background:rgba(255,45,85,.06);min-height:46px;
+    }
+    .ap-title{font-size:11px;letter-spacing:3px;color:var(--red);text-transform:uppercase;white-space:nowrap;overflow:hidden;}
+    .ap-collapse{
+      flex-shrink:0;background:none;border:1px solid var(--dim);color:var(--dim);
+      padding:3px 8px;border-radius:4px;cursor:pointer;font-size:12px;
+      font-family:var(--mono);transition:all .2s;
+    }
+    .ap-collapse:hover{border-color:var(--red);color:var(--red);}
+
+    .ap-stats{
+      flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;
+      gap:1px;background:var(--border);border-bottom:1px solid var(--border);
+    }
+    .ap-stat{background:var(--panel);padding:10px 14px;}
+    .ap-stat-val  {font-size:22px;font-weight:700;font-family:var(--mono);}
+    .ap-stat-label{font-size:10px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;}
+
+    .alert-scroll{flex:1;overflow-y:auto;padding:10px;}
+    .alert-scroll::-webkit-scrollbar{width:4px;}
+    .alert-scroll::-webkit-scrollbar-thumb{background:rgba(255,45,85,.3);border-radius:2px;}
+
+    .empty-state{color:var(--dim);font-size:12px;font-family:var(--mono);text-align:center;padding:30px 10px;line-height:1.8;}
+
+    /* ALERT CARD — full width of panel */
+    .alert-card{
+      background:rgba(255,45,85,.06);border:1px solid rgba(255,45,85,.25);
+      border-radius:8px;padding:14px;margin-bottom:8px;cursor:pointer;
+      transition:all .2s;width:100%;
+    }
+    .alert-card:hover{background:rgba(255,45,85,.12);border-color:var(--red);transform:translateX(3px);}
+
+    .ac-row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+    .ac-bed {font-size:17px;font-weight:700;color:var(--red);letter-spacing:1px;}
+    .ac-time{font-family:var(--mono);font-size:10px;color:var(--dim);}
+    .ac-row2{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+    .ac-pid {font-family:var(--mono);font-size:11px;color:var(--cyan);}
+    .ac-risk{background:var(--red);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;}
+    .ac-risk.warn{background:var(--orange);}
+
+    .ac-vitals{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+    .acv{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:5px;padding:6px 4px;text-align:center;}
+    .acv-label{font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;}
+    .acv-val  {font-family:var(--mono);font-size:13px;margin-top:2px;}
+    .acv-val.r{color:var(--red);} .acv-val.o{color:var(--orange);} .acv-val.g{color:var(--green);} .acv-val.c{color:var(--cyan);}
+
+    .ac-viewbtn{
+      margin-top:10px;width:100%;padding:7px;border-radius:5px;
+      font-family:var(--ui);font-weight:700;font-size:12px;letter-spacing:1px;
+      cursor:pointer;border:1px solid var(--red);background:rgba(255,45,85,.08);
+      color:var(--red);transition:all .2s;
+    }
+    .ac-viewbtn:hover{background:rgba(255,45,85,.2);}
+
+    /* MAIN AREA */
+    .main-area{flex:1;overflow-y:auto;padding:20px;min-width:0;}
+    .main-area::-webkit-scrollbar{width:4px;}
+    .main-area::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+    .section-title{
+      font-size:11px;letter-spacing:3px;color:var(--dim);
+      text-transform:uppercase;margin-bottom:14px;padding-bottom:8px;
+      border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;
+    }
+    .dot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:blink 1.5s infinite;display:inline-block;}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+    /* BED GRID */
+    .bed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;}
+    .bed-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:all .25s;}
+    .bed-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.4);}
+    .bed-card.critical{border-color:rgba(255,45,85,.5);background:rgba(255,45,85,.04);}
+    .bed-card.warning {border-color:rgba(255,149,0,.4);}
+    .bed-card.vacant  {border-color:var(--dim);opacity:.35;pointer-events:none;}
+    .bc-head {display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+    .bc-num  {font-size:20px;font-weight:700;}
+    .bc-badge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:1px;}
+    .badge-critical{background:rgba(255,45,85,.2); color:var(--red);   border:1px solid rgba(255,45,85,.4);}
+    .badge-warning {background:rgba(255,149,0,.2); color:var(--orange);border:1px solid rgba(255,149,0,.4);}
+    .badge-normal  {background:rgba(48,209,88,.2); color:var(--green); border:1px solid rgba(48,209,88,.4);}
+    .badge-vacant  {background:rgba(58,58,92,.2);  color:var(--dim);   border:1px solid var(--dim);}
+    .bc-pid   {font-family:var(--mono);font-size:10px;color:var(--cyan);margin-bottom:7px;}
+    .bc-vitals{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+    .bc-vital .v-label{color:var(--dim);font-size:9px;}
+    .bc-vital .v-val  {font-family:var(--mono);color:var(--text);}
+    .bc-vital .v-val.red   {color:var(--red);}
+    .bc-vital .v-val.orange{color:var(--orange);}
+    .bc-vital .v-val.green {color:var(--green);}
+
+    /* CHART MODAL */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:800;justify-content:center;align-items:center;}
+    .modal-overlay.open{display:flex;}
+    .modal-box{
+      background:var(--panel);border:1px solid var(--red);border-radius:12px;
+      width:min(860px,95vw);max-height:88vh;overflow-y:auto;padding:26px;
+    }
+    .modal-box::-webkit-scrollbar{width:4px;}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+    .modal-title {font-size:18px;font-weight:700;color:var(--red);letter-spacing:2px;}
+    .modal-close {
+      background:none;border:1px solid var(--dim);color:var(--dim);
+      padding:6px 12px;border-radius:6px;cursor:pointer;font-family:var(--ui);
+      font-size:13px;font-weight:700;transition:all .2s;
+    }
+    .modal-close:hover{border-color:var(--red);color:var(--red);}
+    .mv-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+    .mv-card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;}
+    .mv-label{font-size:10px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;}
+    .mv-val  {font-size:26px;font-weight:700;font-family:var(--mono);margin-top:4px;}
+    .chart-wrap{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;}
+    canvas{max-height:160px;}
+
+    /* REGISTRY */
+    .reg-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:700;justify-content:center;align-items:center;}
+    .reg-overlay.open{display:flex;}
+    .reg-box{background:var(--panel);border:1px solid var(--purple);border-radius:12px;width:min(1000px,96vw);max-height:90vh;overflow-y:auto;padding:26px;}
+    .reg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+    .reg-title {font-size:18px;font-weight:700;color:var(--purple);letter-spacing:2px;}
+    .reg-filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+    .reg-filter-btn{padding:6px 14px;border-radius:6px;font-family:var(--ui);font-weight:700;font-size:12px;letter-spacing:1px;cursor:pointer;border:1px solid var(--dim);background:none;color:var(--dim);transition:all .2s;}
+    .reg-filter-btn.active{border-color:var(--purple);color:var(--purple);background:rgba(191,90,242,.1);}
+    .reg-search{background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-family:var(--mono);font-size:12px;width:200px;}
+    .reg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;}
+    .reg-card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:12px;transition:all .2s;cursor:pointer;}
+    .reg-card:hover{border-color:var(--purple);background:rgba(191,90,242,.06);}
+    .rc-bed{font-size:18px;font-weight:700;color:var(--purple);}
+    .rc-pid{font-family:var(--mono);font-size:10px;color:var(--cyan);margin:4px 0;word-break:break-all;}
+    .rc-status{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;display:inline-block;}
+    .rc-occ{background:rgba(48,209,88,.15);color:var(--green);border:1px solid rgba(48,209,88,.3);}
+    .rc-vac{background:rgba(58,58,92,.15); color:var(--dim);  border:1px solid var(--dim);}
+    .rc-admitted{font-size:10px;color:var(--dim);margin-top:4px;}
+
+    /* CHAT */
+    .chat-sidebar{
+      position:fixed;right:0;top:0;bottom:0;width:340px;
+      background:rgba(8,8,16,.98);border-left:1px solid var(--purple);
+      z-index:900;display:flex;flex-direction:column;
+      transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+    }
+    .chat-sidebar.open{transform:translateX(0);}
+    .chat-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+    .chat-header h3{font-size:14px;font-weight:700;color:var(--purple);letter-spacing:2px;}
+    .chat-close{background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px;}
+    .chat-rooms{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border);}
+    .chat-room-btn{flex:1;padding:6px;border-radius:6px;font-family:var(--ui);font-weight:700;font-size:11px;letter-spacing:1px;cursor:pointer;border:1px solid var(--dim);background:none;color:var(--dim);transition:all .2s;}
+    .chat-room-btn.active{border-color:var(--purple);color:var(--purple);background:rgba(191,90,242,.1);}
+    .chat-messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;}
+    .chat-messages::-webkit-scrollbar{width:3px;}
+    .chat-messages::-webkit-scrollbar-thumb{background:var(--border);}
+    .chat-msg{background:rgba(255,255,255,.04);border-radius:8px;padding:8px 10px;}
+    .msg-meta{display:flex;justify-content:space-between;margin-bottom:3px;}
+    .msg-user{font-size:11px;font-weight:700;}
+    .msg-time{font-size:10px;color:var(--dim);font-family:var(--mono);}
+    .msg-text{font-size:13px;line-height:1.5;}
+    .role-nurse {color:var(--green);}
+    .role-doctor{color:var(--purple);}
+    .chat-input-area{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;}
+    .chat-input{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-family:var(--ui);font-size:13px;}
+    .chat-input:focus{outline:none;border-color:var(--purple);}
+    .chat-send{background:var(--purple);border:none;color:#fff;padding:8px 14px;border-radius:6px;cursor:pointer;font-family:var(--ui);font-weight:700;font-size:13px;transition:opacity .2s;}
+    .chat-send:hover{opacity:.85;}
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <h1>⚕ ICU DOCTOR CONSOLE</h1>
+    <p>Emergency Doctor View &nbsp;|&nbsp; <span style="color:var(--red);font-family:var(--mono)">{{ session.get('username','doctor') }}</span></p>
+  </div>
+  <div class="topbar-right">
+    <button class="action-btn btn-orange" onclick="clearAlerts()">🔕 CLEAR ALERTS</button>
+    <button class="action-btn btn-red"    onclick="openRegistry()">📋 PATIENT REGISTRY</button>
+    <button class="action-btn btn-purple" onclick="toggleChat()">💬 STAFF CHAT</button>
+    <a href="/history" class="action-btn btn-cyan" >📂 DISCHARGE HISTORY</a>
+    <a href="/logout"  class="action-btn btn-dim"  >⏏ LOGOUT</a>
+  </div>
+</div>
+
+<!-- ALERT BANNER -->
+<div class="alert-banner" id="alertBanner"></div>
+
+<!-- BODY -->
+<div class="body-wrap">
+
+  <!-- ALERT PANEL -->
+  <div class="alert-panel" id="alertPanel">
+    <div class="ap-header">
+      <span class="ap-title" id="apTitle">🚨 CRITICAL ALERTS</span>
+      <button class="ap-collapse" id="colBtn" onclick="togglePanel()">◀</button>
+    </div>
+    <div class="ap-stats" id="apStats">
+      <div class="ap-stat">
+        <div class="ap-stat-val" id="sCrit"  style="color:var(--red)">0</div>
+        <div class="ap-stat-label">Critical</div>
+      </div>
+      <div class="ap-stat">
+        <div class="ap-stat-val" id="sTotal" style="color:var(--orange)">0</div>
+        <div class="ap-stat-label">Total Alerts</div>
+      </div>
+    </div>
+    <div class="alert-scroll" id="alertScroll">
+      <div class="empty-state" id="emptyMsg">No critical alerts<br><br>System monitoring…</div>
+    </div>
+  </div>
+
+  <!-- MAIN BED AREA -->
+  <div class="main-area">
+    <div class="section-title"><span class="dot"></span> LIVE BED MONITOR — ALL WARDS</div>
+    <div class="bed-grid" id="bedGrid"></div>
+  </div>
+</div>
+
+<!-- CHART MODAL -->
+<div class="modal-overlay" id="chartModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">BED — PATIENT</div>
+      <button class="modal-close" onclick="closeModal()">✕ CLOSE</button>
+    </div>
+    <div class="mv-row">
+      <div class="mv-card"><div class="mv-label">TEMP °C</div><div class="mv-val" id="mv-temp" style="color:var(--orange)">—</div></div>
+      <div class="mv-card"><div class="mv-label">BP mmHg</div><div class="mv-val" id="mv-bp"   style="color:var(--red)">—</div></div>
+      <div class="mv-card"><div class="mv-label">HR BPM</div> <div class="mv-val" id="mv-hr"   style="color:var(--purple)">—</div></div>
+      <div class="mv-card"><div class="mv-label">SpO2 %</div> <div class="mv-val" id="mv-spo2" style="color:var(--cyan)">—</div></div>
+    </div>
+    <div class="chart-wrap">
+      <div style="font-size:11px;color:var(--dim);letter-spacing:2px;margin-bottom:8px">TEMPERATURE TREND</div>
+      <canvas id="cTemp"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div style="font-size:11px;color:var(--dim);letter-spacing:2px;margin-bottom:8px">BLOOD PRESSURE TREND</div>
+      <canvas id="cBP"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div style="font-size:11px;color:var(--dim);letter-spacing:2px;margin-bottom:8px">SpO2 TREND</div>
+      <canvas id="cSpo2"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTRY OVERLAY -->
+<div class="reg-overlay" id="regOverlay">
+  <div class="reg-box">
+    <div class="reg-header">
+      <div>
+        <div class="reg-title">📋 PATIENT REGISTRY</div>
+        <p style="color:var(--dim);font-size:12px;margin-top:4px">
+          Current bed status &nbsp;|&nbsp;
+          <a href="/history" style="color:var(--cyan);font-size:11px;text-decoration:none">📂 Full Discharge History →</a>
+        </p>
+      </div>
+      <button class="modal-close" onclick="closeRegistry()">✕ CLOSE</button>
+    </div>
+    <div class="reg-filters">
+      <button class="reg-filter-btn active" onclick="filterReg('all',this)">ALL BEDS</button>
+      <button class="reg-filter-btn"        onclick="filterReg('OCCUPIED',this)">OCCUPIED</button>
+      <button class="reg-filter-btn"        onclick="filterReg('VACANT',this)">VACANT</button>
+      <input class="reg-search" id="regSearch" placeholder="Search Patient ID…" oninput="renderReg()">
+    </div>
+    <div class="reg-grid" id="regGrid"></div>
+  </div>
+</div>
+
+<!-- CHAT SIDEBAR -->
+<div class="chat-sidebar" id="chatSidebar">
+  <div class="chat-header">
+    <h3>💬 STAFF CHAT</h3>
+    <button class="chat-close" onclick="toggleChat()">✕</button>
+  </div>
+  <div class="chat-rooms">
+    <button class="chat-room-btn active" onclick="switchRoom('general',this)">GENERAL</button>
+    <button class="chat-room-btn"        onclick="switchRoom('emergency',this)">EMERGENCY</button>
+    <button class="chat-room-btn"        onclick="switchRoom('icu',this)">ICU</button>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-input-area">
+    <input class="chat-input" id="chatInput" placeholder="Type message…" onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="chat-send" onclick="sendChat()">SEND</button>
+  </div>
+</div>
+
+<script>
+  const USERNAME = '{{ session.get("username","doctor") }}';
+  const ROLE     = '{{ session.get("role","doctor") }}';
+  const socket   = io();
+
+  /* STATE */
+  const bedData = {};
+  for(let i=1;i<=100;i++) bedData[i]={status:'vacant'};
+  let critCount=0, totalCount=0, panelOpen=true;
+
+  /* PANEL COLLAPSE */
+  function togglePanel(){
+    panelOpen=!panelOpen;
+    const p=document.getElementById('alertPanel');
+    const b=document.getElementById('colBtn');
+    const t=document.getElementById('apTitle');
+    const s=document.getElementById('apStats');
+    const sc=document.getElementById('alertScroll');
+    if(panelOpen){
+      p.style.width='420px';p.style.minWidth='320px';
+      b.textContent='◀';t.style.opacity='1';
+      s.style.display='';sc.style.display='';
+    } else {
+      p.style.width='50px';p.style.minWidth='50px';
+      b.textContent='▶';t.style.opacity='0';
+      s.style.display='none';sc.style.display='none';
+    }
+  }
+
+  /* CLEAR */
+  function clearAlerts(){
+    document.getElementById('alertBanner').style.display='none';
+    document.getElementById('alertScroll').innerHTML='<div class="empty-state">Alerts cleared</div>';
+    critCount=0;totalCount=0;
+    document.getElementById('sCrit').textContent=0;
+    document.getElementById('sTotal').textContent=0;
+  }
+
+  /* BED GRID */
+  function renderBedGrid(){
+    const grid=document.getElementById('bedGrid');grid.innerHTML='';
+    for(let i=1;i<=100;i++){
+      const d=bedData[i];
+      const cls=d.status==='vacant'?'vacant':d.risk>=5?'critical':d.risk>=3?'warning':'normal';
+      const badge=d.status==='vacant'?'<span class="bc-badge badge-vacant">VACANT</span>':
+        d.risk>=5?'<span class="bc-badge badge-critical">CRITICAL</span>':
+        d.risk>=3?'<span class="bc-badge badge-warning">WARNING</span>':
+        '<span class="bc-badge badge-normal">STABLE</span>';
+      const vitals=d.status==='vacant'?'<div style="color:var(--dim);font-size:11px;margin-top:6px">No patient</div>':
+        `<div class="bc-vitals">
+          <div class="bc-vital"><div class="v-label">TEMP</div><div class="v-val ${d.temp>=39?'red':d.temp>=38?'orange':''}">${d.temp??'—'}°</div></div>
+          <div class="bc-vital"><div class="v-label">BP</div><div class="v-val ${d.bp>160?'red':d.bp>130?'orange':''}">${d.bp??'—'}</div></div>
+          <div class="bc-vital"><div class="v-label">HR</div><div class="v-val ${d.hr>110?'red':''}">${d.hr??'—'}</div></div>
+          <div class="bc-vital"><div class="v-label">SpO2</div><div class="v-val ${d.spo2<90?'red':d.spo2<95?'orange':'green'}">${d.spo2??'—'}%</div></div>
+        </div>`;
+      const card=document.createElement('div');
+      card.className=`bed-card ${cls}`;
+      card.innerHTML=`
+        <div class="bc-head"><div class="bc-num">BED ${i}</div>${badge}</div>
+        ${d.patient_id?`<div class="bc-pid">ID: ${d.patient_id}</div>`:''}
+        ${vitals}`;
+      if(d.status!=='vacant') card.onclick=()=>openChart(i);
+      grid.appendChild(card);
+    }
+  }
+
+  /* SOCKET */
+  socket.on('nurse_update',data=>{
+    const b=data.bed;
+    bedData[b]={status:'occupied',patient_id:data.patient_id||bedData[b]?.patient_id,
+      temp:data.temperature,bp:data.bp,hr:data.heart_rate,spo2:data.spo2,risk:data.risk_score};
+    renderBedGrid();
+  });
+
+  socket.on('doctor_alert',data=>{
+    critCount++;totalCount++;
+    document.getElementById('sCrit').textContent=critCount;
+    document.getElementById('sTotal').textContent=totalCount;
+    const banner=document.getElementById('alertBanner');
+    banner.textContent=`⚠ CRITICAL — BED ${data.bed} · Patient ${data.patient_id} · Risk ${data.risk_score} · Temp ${data.temperature}°C · BP ${data.bp}`;
+    banner.style.display='block';
+    addAlertCard(data);
+  });
+
+  /* ADD ALERT CARD */
+  function addAlertCard(data){
+    const scroll=document.getElementById('alertScroll');
+    const empty=document.getElementById('emptyMsg');
+    if(empty) empty.remove();
+    const now=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const card=document.createElement('div');card.className='alert-card';
+    card.innerHTML=`
+      <div class="ac-row1">
+        <div class="ac-bed">🚨 BED ${data.bed}</div>
+        <div class="ac-time">${now}</div>
+      </div>
+      <div class="ac-row2">
+        <div class="ac-pid">PID: ${data.patient_id||'—'}</div>
+        <div class="ac-risk ${data.risk_score<6?'warn':''}">RISK ${data.risk_score}</div>
+      </div>
+      <div class="ac-vitals">
+        <div class="acv"><div class="acv-label">TEMP</div><div class="acv-val ${data.temperature>=39?'r':'o'}">${data.temperature}°C</div></div>
+        <div class="acv"><div class="acv-label">BP</div>  <div class="acv-val ${data.bp>160?'r':'o'}">${data.bp}</div></div>
+        <div class="acv"><div class="acv-label">HR</div>  <div class="acv-val ${data.heart_rate>110?'r':'c'}">${data.heart_rate}</div></div>
+        <div class="acv"><div class="acv-label">SpO2</div><div class="acv-val ${data.spo2<90?'r':data.spo2<95?'o':'g'}">${data.spo2}%</div></div>
+      </div>
+      <button class="ac-viewbtn" onclick="openChart(${data.bed})">📈 VIEW VITALS CHART</button>
+    `;
+    scroll.prepend(card);
+  }
+
+  /* CHART MODAL */
+  let charts=[];
+  function openChart(bed){
+    charts.forEach(c=>c.destroy());charts=[];
+    document.getElementById('chartModal').classList.add('open');
+    fetch(`/bed_history/${bed}`).then(r=>r.json()).then(d=>{
+      const pid=d.patient_id||'—';
+      document.getElementById('modalTitle').textContent=`BED ${bed} — PATIENT ${pid}`;
+      const last=k=>d[k]?.length?d[k][d[k].length-1]:'—';
+      document.getElementById('mv-temp').textContent=last('temperature')+(last('temperature')!=='—'?'°':'');
+      document.getElementById('mv-bp').textContent=last('bp');
+      document.getElementById('mv-hr').textContent=last('hr');
+      document.getElementById('mv-spo2').textContent=last('spo2')+(last('spo2')!=='—'?'%':'');
+      const mk=(id,label,vals,color)=>{
+        const c=new Chart(document.getElementById(id).getContext('2d'),{type:'line',
+          data:{labels:d.time,datasets:[{label,data:vals,borderColor:color,backgroundColor:color+'20',tension:.4,pointRadius:3}]},
+          options:{responsive:true,plugins:{legend:{labels:{color:'#888',font:{family:"'Share Tech Mono',monospace",size:11}}}},
+            scales:{x:{ticks:{color:'#555',maxTicksLimit:6},grid:{color:'#1a1a2e'}},y:{ticks:{color:'#555'},grid:{color:'#1a1a2e'}}}}
+        });charts.push(c);
+      };
+      mk('cTemp','Temperature °C',d.temperature,'#ff9500');
+      mk('cBP',  'Blood Pressure', d.bp,         '#ff2d55');
+      mk('cSpo2','SpO2 %',         d.spo2,        '#64d2ff');
+    });
+  }
+  function closeModal(){
+    document.getElementById('chartModal').classList.remove('open');
+    charts.forEach(c=>c.destroy());charts=[];
+  }
+
+  /* REGISTRY */
+  let allBeds=[],regF='all';
+  function openRegistry(){
+    document.getElementById('regOverlay').classList.add('open');
+    fetch('/bed_status').then(r=>r.json()).then(d=>{allBeds=d;renderReg();});
+  }
+  function closeRegistry(){document.getElementById('regOverlay').classList.remove('open');}
+  function renderReg(){
+    const search=(document.getElementById('regSearch').value||'').toUpperCase();
+    const grid=document.getElementById('regGrid');grid.innerHTML='';
+    allBeds.filter(b=>regF==='all'||b.status===regF)
+           .filter(b=>!search||(b.patient_id||'').includes(search))
+           .forEach(b=>{
+      const card=document.createElement('div');card.className='reg-card';
+      const occ=b.status==='OCCUPIED';
+      card.innerHTML=`
+        <div class="rc-bed">BED ${b.bed}</div>
+        <div class="rc-pid">${b.patient_id||'NO PATIENT'}</div>
+        <span class="rc-status ${occ?'rc-occ':'rc-vac'}">${b.status}</span>
+        <div class="rc-admitted">${b.admitted?'⏱ '+b.admitted.split('T')[0]:''}</div>`;
+      if(occ) card.onclick=()=>{closeRegistry();openChart(b.bed);};
+      grid.appendChild(card);
+    });
+  }
+  function filterReg(f,btn){
+    regF=f;
+    document.querySelectorAll('.reg-filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');renderReg();
+  }
+
+  /* CHAT */
+  let room='general';
+  function toggleChat(){
+    const s=document.getElementById('chatSidebar');s.classList.toggle('open');
+    if(s.classList.contains('open')) loadHistory();
+  }
+  function switchRoom(r,btn){
+    room=r;document.querySelectorAll('.chat-room-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');document.getElementById('chatMessages').innerHTML='';
+    socket.emit('join_room',{room:r});loadHistory();
+  }
+  function loadHistory(){
+    fetch(`/chat_history/${room}`).then(r=>r.json()).then(d=>{
+      const box=document.getElementById('chatMessages');box.innerHTML='';
+      (d.messages||[]).forEach(m=>addMsg({username:m[0],role:m[1],msg:m[2],time:m[3]}));
+    });
+  }
+  function addMsg(data){
+    const box=document.getElementById('chatMessages');
+    const div=document.createElement('div');div.className='chat-msg';
+    const t=data.time?data.time.split(' ')[1]?.slice(0,5):'';
+    div.innerHTML=`<div class="msg-meta"><span class="msg-user role-${data.role||'doctor'}">${data.username}</span><span class="msg-time">${t}</span></div><div class="msg-text">${data.msg}</div>`;
+    box.appendChild(div);box.scrollTop=box.scrollHeight;
+  }
+  function sendChat(){
+    const inp=document.getElementById('chatInput');const msg=inp.value.trim();if(!msg)return;
+    socket.emit('chat_message',{room,username:USERNAME,role:ROLE,msg,time:new Date().toISOString()});
+    inp.value='';
+  }
+  socket.on('chat_message',data=>{if(data.room===room)addMsg(data);});
+  socket.emit('join_room',{room});
+
+  renderBedGrid();
+</script>
+</body>
+</html>

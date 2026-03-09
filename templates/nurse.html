@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>ICU Nurse Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg: #080d14;
+  --surface: #0d1520;
+  --card: #111b2a;
+  --border: #1e3a5f;
+  --cyan: #00e5ff;
+  --green: #00ff88;
+  --red: #ff2d55;
+  --yellow: #ffd600;
+  --dim: #4a6a8a;
+  --text: #cce8ff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.015) 2px, rgba(0,229,255,0.015) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ─── TOP BAR ─── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar-left h1 {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 18px;
+  color: var(--cyan);
+  letter-spacing: 3px;
+}
+
+.topbar-left p {
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.topbar-right {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.stat-pill {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 16px;
+  text-align: center;
+  min-width: 90px;
+}
+.stat-pill .label { font-size: 10px; color: var(--dim); letter-spacing: 1px; }
+.stat-pill .value { font-family: 'Share Tech Mono', monospace; font-size: 20px; color: var(--cyan); }
+.stat-pill .value.danger { color: var(--red); }
+
+.chat-toggle-btn {
+  background: linear-gradient(135deg, #003d66, #005588);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.chat-toggle-btn:hover { background: #00557a; box-shadow: 0 0 12px var(--cyan); }
+
+/* ─── MAIN LAYOUT ─── */
+.main {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 61px);
+}
+
+/* ─── BED GRID ─── */
+.beds-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.beds-panel::-webkit-scrollbar { width: 4px; }
+.beds-panel::-webkit-scrollbar-track { background: var(--bg); }
+.beds-panel::-webkit-scrollbar-thumb { background: var(--border); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+  position: relative;
+}
+
+.card:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,229,255,0.2); }
+
+.bed-title {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  color: var(--cyan);
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pid-badge {
+  font-size: 9px;
+  background: rgba(0,229,255,0.1);
+  border: 1px solid rgba(0,229,255,0.3);
+  color: var(--cyan);
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0;
+}
+
+.vital { color: var(--text); margin: 2px 0; font-size: 11px; }
+
+.card.critical {
+  background: #1a0000;
+  border-color: var(--red);
+  animation: pulse-red 1s infinite;
+  color: var(--red);
+}
+.card.critical .vital { color: #ff6677; }
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 8px rgba(255,45,85,0.4); }
+  50% { box-shadow: 0 0 24px rgba(255,45,85,0.9); }
+}
+
+.card.vacant {
+  background: #0a0f0a;
+  border-color: #1a3a1a;
+  opacity: 0.55;
+}
+.card.vacant .vital { color: #3a5a4a; }
+
+.discharge-btn {
+  margin-top: 6px;
+  padding: 4px 0;
+  background: rgba(0,255,136,0.1);
+  color: var(--green);
+  border: 1px solid var(--green);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  width: 100%;
+  font-family: 'Rajdhani', sans-serif;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.discharge-btn:hover { background: rgba(0,255,136,0.25); }
+
+.risk-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.risk-low  { background: rgba(0,255,136,0.15); color: var(--green); }
+.risk-mid  { background: rgba(255,214,0,0.15);  color: var(--yellow); }
+.risk-high { background: rgba(255,45,85,0.2);   color: var(--red); }
+
+/* ─── CHAT PANEL ─── */
+.chat-panel {
+  width: 320px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  overflow: hidden;
+}
+
+.chat-panel.hidden { width: 0; border: none; }
+
+.chat-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chat-header h3 {
+  font-size: 14px;
+  color: var(--cyan);
+  letter-spacing: 2px;
+  font-family: 'Share Tech Mono', monospace;
+  flex: 1;
+}
+
+.room-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.room-tab {
+  flex: 1;
+  padding: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-align: center;
+  color: var(--dim);
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+.room-tab.active {
+  color: var(--cyan);
+  border-bottom-color: var(--cyan);
+  background: rgba(0,229,255,0.05);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chat-messages::-webkit-scrollbar { width: 3px; }
+.chat-messages::-webkit-scrollbar-thumb { background: var(--border); }
+
+.msg-bubble {
+  max-width: 85%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.msg-bubble.mine {
+  align-self: flex-end;
+  background: rgba(0,229,255,0.12);
+  border: 1px solid rgba(0,229,255,0.25);
+}
+.msg-bubble.theirs {
+  align-self: flex-start;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.msg-meta {
+  font-size: 10px;
+  color: var(--dim);
+  margin-bottom: 3px;
+  display: flex;
+  justify-content: space-between;
+}
+.msg-meta .role-nurse { color: var(--green); }
+.msg-meta .role-doctor { color: #aa88ff; }
+.msg-text { color: var(--text); }
+
+.chat-input-row {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.chat-input {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.chat-input:focus { border-color: var(--cyan); }
+.send-btn {
+  background: var(--cyan);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.send-btn:hover { background: #33eeff; }
+
+.unread-dot {
+  width: 8px; height: 8px;
+  background: var(--red);
+  border-radius: 50%;
+  display: none;
+  animation: blink 1s infinite;
+}
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* ─── MODAL ─── */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal.open { display: flex; }
+.modal-content {
+  background: var(--surface);
+  padding: 24px;
+  border-radius: 12px;
+  width: 88%;
+  max-width: 860px;
+  border: 1px solid var(--border);
+  box-shadow: 0 0 40px rgba(0,229,255,0.15);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.modal-header h2 {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--cyan);
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+.modal-meta { font-size: 12px; color: var(--dim); margin-top: 4px; }
+.modal-meta span { color: var(--green); }
+.close-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+}
+.chart-wrap { height: 360px; }
+
+/* ─── HISTORY PANEL ─── */
+.history-panel {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 1001;
+  overflow-y: auto;
+  padding: 30px;
+}
+.history-panel.open { display: block; }
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+.history-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.history-card.occupied-card { border-color: rgba(0,255,136,0.3); }
+.history-card.vacant-card   { border-color: rgba(255,214,0,0.2); opacity: 0.7; }
+.hc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.hc-bed { font-family: 'Share Tech Mono', monospace; color: var(--cyan); font-size: 15px; }
+.status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 1px;
+}
+.badge-occupied { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid var(--green); }
+.badge-vacant   { background: rgba(255,214,0,0.1);  color: var(--yellow); border: 1px solid var(--yellow); }
+.hc-pid { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+.hc-pid span { color: var(--cyan); font-family: 'Share Tech Mono', monospace; }
+.hc-vitals { font-size: 12px; line-height: 1.8; }
+.hc-admitted { font-size: 10px; color: var(--dim); margin-top: 8px; }
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-header h2 {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--cyan);
+  font-size: 18px;
+  letter-spacing: 3px;
+}
+.filter-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.filter-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--dim);
+  padding: 6px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.filter-btn.active { border-color: var(--cyan); color: var(--cyan); }
+.search-input {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  outline: none;
+  width: 180px;
+}
+.search-input:focus { border-color: var(--cyan); }
+
+/* alarm */
+audio { display: none; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <h1>🏥 ICU NURSE CONSOLE</h1>
+    <p>Cloud Monitoring System · Raghavendra &amp; Dhanush &nbsp;|&nbsp; <span style="color:var(--cyan);font-family:'Share Tech Mono',monospace">{{ session.get('username','nurse') }}</span></p>
+  </div>
+  <div class="topbar-right">
+    <div class="stat-pill">
+      <div class="label">TOTAL BEDS</div>
+      <div class="value">100</div>
+    </div>
+    <div class="stat-pill">
+      <div class="label">CRITICAL</div>
+      <div class="value danger" id="criticalCount">0</div>
+    </div>
+    <div class="stat-pill">
+      <div class="label">OCCUPIED</div>
+      <div class="value" id="occupiedCount">—</div>
+    </div>
+    
+    <button class="chat-toggle-btn" onclick="toggleChat()">💬 STAFF CHAT</button>
+    <button class="chat-toggle-btn" style="border-color:var(--green);color:var(--green)" onclick="openHistory()">📋 LIVE REGISTRY</button>
+    <a href="/history" style="background:rgba(0,212,170,0.08);border:1px solid #00ccbb;color:#00ccbb;padding:8px 16px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:1px;text-decoration:none;">📂 DISCHARGE HISTORY</a>
+    <a href="/logout"  style="background:rgba(255,45,85,0.08);border:1px solid var(--red);color:var(--red);padding:8px 16px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:1px;text-decoration:none;">⏏ LOGOUT</a>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main">
+
+  <!-- BED GRID -->
+  <div class="beds-panel">
+    <div class="grid" id="beds"></div>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="chat-panel hidden" id="chatPanel">
+    <div class="chat-header">
+      <h3>⚡ STAFF COMM</h3>
+      <div class="unread-dot" id="unreadDot"></div>
+    </div>
+    <div class="room-tabs">
+      <div class="room-tab active" id="tab-general" onclick="switchRoom('general')">GENERAL</div>
+      <div class="room-tab" id="tab-emergency" onclick="switchRoom('emergency')">EMERGENCY</div>
+      <div class="room-tab" id="tab-icu" onclick="switchRoom('icu')">ICU</div>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chatInput" placeholder="Type message..." onkeydown="if(event.key==='Enter') sendChat()">
+      <button class="send-btn" onclick="sendChat()">▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- VITAL HISTORY MODAL -->
+<div class="modal" id="graphModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div>
+        <h2 id="modalTitle">BED VITALS</h2>
+        <div class="modal-meta" id="modalMeta"></div>
+      </div>
+      <button class="close-btn" onclick="closeModal()">✖ CLOSE</button>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="bedChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- PATIENT REGISTRY PANEL -->
+<div class="history-panel" id="historyPanel">
+  <div class="panel-header">
+    <div>
+      <h2>📋 PATIENT REGISTRY</h2>
+      <p style="color:var(--dim);font-size:12px;margin-top:4px;">
+  Current bed status &nbsp;|&nbsp;
+  <a href="/history" style="color:var(--cyan);font-size:11px;text-decoration:none;letter-spacing:1px">📂 View Full Discharge History →</a>
+</p>
+    </div>
+    <button class="close-btn" onclick="closeHistory()">✖ CLOSE</button>
+  </div>
+  <div class="filter-row">
+    <button class="filter-btn active" id="filter-all" onclick="filterBeds('all')">ALL BEDS</button>
+    <button class="filter-btn" id="filter-occupied" onclick="filterBeds('occupied')">OCCUPIED</button>
+    <button class="filter-btn" id="filter-vacant" onclick="filterBeds('vacant')">VACANT</button>
+    <input class="search-input" id="searchInput" placeholder="Search Patient ID..." oninput="searchPatient()">
+  </div>
+  <div class="history-grid" id="historyGrid">
+    <p style="color:var(--dim);padding:20px;">Loading bed registry...</p>
+  </div>
+</div>
+
+<audio id="alarmSound">
+  <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+</audio>
+
+<script>
+var socket = io();
+var bedsContainer = document.getElementById("beds");
+var alarm = document.getElementById("alarmSound");
+let chartInstance = null;
+let currentBed = null;
+let autoRefresh = null;
+let allBedData = [];
+let currentFilter = 'all';
+let chatOpen = false;
+let currentRoom = 'general';
+const USERNAME = '{{ session.get("username", "nurse") }}';
+const ROLE     = '{{ session.get("role", "nurse") }}';
+
+/* ── CREATE 100 BED CARDS ── */
+for(let i = 1; i <= 100; i++){
+  let div = document.createElement("div");
+  div.className = "card";
+  div.id = "bed" + i;
+  div.innerHTML = `
+    <div class="bed-title">BED ${i} <span class="pid-badge">VACANT</span></div>
+    <div class="vital" style="color:var(--dim);font-size:11px;">No Data</div>
+  `;
+  div.onclick = function(){ openGraph(i); };
+  bedsContainer.appendChild(div);
+}
+
+/* ── LIVE SOCKET UPDATE ── */
+socket.on("nurse_update", function(data) {
+  let card = document.getElementById("bed" + data.bed);
+  if(!card || card.classList.contains("discharged")) return;
+
+  card.className = "card";
+  if(data.risk_score >= 5){
+    card.classList.add("critical");
+    alarm.play().catch(e=>{});
+  }
+
+  let riskClass = data.risk_score >= 5 ? 'risk-high' : data.risk_score >= 3 ? 'risk-mid' : 'risk-low';
+  let pidText = data.patient_id || '—';
+
+  card.innerHTML = `
+    <div class="bed-title">BED ${data.bed} <span class="pid-badge">${pidText}</span></div>
+    <div class="vital">🌡 ${data.temperature}°C</div>
+    <div class="vital">🩺 ${data.bp} mmHg</div>
+    <div class="vital">❤️ ${data.heart_rate} bpm</div>
+    <div class="vital">🫁 ${data.spo2}%</div>
+    <div class="vital">💧 ${data.saline}%</div>
+    <span class="risk-badge ${riskClass}">RISK: ${data.risk_score}</span>
+    <button class="discharge-btn" onclick="event.stopPropagation(); dischargePatient(${data.bed}, this)">
+      ✔ Discharge Patient
+    </button>
+  `;
+  updateCriticalCount();
+});
+
+/* ── DISCHARGE ── */
+function dischargePatient(bedId, btn){
+  if(!confirm(`Discharge patient from Bed ${bedId} and mark as VACANT?`)) return;
+  fetch(`/discharge/${bedId}`, { method: "POST" })
+  .then(res => res.json())
+  .then(data => {
+    let card = document.getElementById("bed" + bedId);
+    card.className = "card vacant";
+    card.onclick = null;
+    card.innerHTML = `
+      <div class="bed-title">BED ${bedId} <span class="pid-badge" style="color:var(--yellow);border-color:rgba(255,214,0,0.3)">VACANT</span></div>
+      <div class="vital" style="color:var(--dim);font-size:10px;margin-top:6px;">🛏 Patient Discharged</div>
+    `;
+    updateCriticalCount();
+  });
+}
+
+function updateCriticalCount(){
+  document.getElementById("criticalCount").innerText = document.querySelectorAll(".critical").length;
+}
+
+/* ── VITAL GRAPH ── */
+function openGraph(bedId){
+  currentBed = bedId;
+  document.getElementById("graphModal").classList.add("open");
+  loadGraph();
+  if(autoRefresh) clearInterval(autoRefresh);
+  autoRefresh = setInterval(loadGraph, 5000);
+}
+
+function loadGraph(){
+  fetch("/bed_history/" + currentBed)
+  .then(res => res.json())
+  .then(data => {
+    let title = `BED ${currentBed} — VITAL TRENDS`;
+    document.getElementById("modalTitle").innerText = title;
+
+    let metaEl = document.getElementById("modalMeta");
+    if(data.patient_id){
+      let statusColor = data.bed_status === "OCCUPIED" ? "var(--green)" : "var(--yellow)";
+      metaEl.innerHTML = `Status: <span style="color:${statusColor}">${data.bed_status}</span> &nbsp;|&nbsp; Patient ID: <span style="color:var(--cyan);font-family:'Share Tech Mono',monospace">${data.patient_id}</span>`;
+    } else {
+      metaEl.innerHTML = `<span style="color:var(--yellow)">BED VACANT — No active patient</span>`;
+    }
+
+    if(!data.time || data.time.length === 0) return;
+
+    const ctx = document.getElementById("bedChart").getContext('2d');
+    if(chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.time,
+        datasets: [
+          { label: "Temp °C", data: data.temperature, borderColor: "#00e5ff", tension: 0.4, fill: false, pointRadius: 3 },
+          { label: "BP mmHg", data: data.bp,          borderColor: "#ff2d55", tension: 0.4, fill: false, pointRadius: 3 },
+          { label: "HR bpm",  data: data.hr,           borderColor: "#00ff88", tension: 0.4, fill: false, pointRadius: 3 },
+          { label: "SpO2 %",  data: data.spo2,         borderColor: "#ffd600", tension: 0.4, fill: false, pointRadius: 3 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: "#cce8ff", font: { family: 'Rajdhani', size: 13 } } } },
+        scales: {
+          x: { ticks: { color: "#4a6a8a" }, grid: { color: "#1e3a5f" } },
+          y: { ticks: { color: "#4a6a8a" }, grid: { color: "#1e3a5f" } }
+        }
+      }
+    });
+  });
+}
+
+function closeModal(){
+  document.getElementById("graphModal").classList.remove("open");
+  clearInterval(autoRefresh);
+}
+
+/* ── PATIENT REGISTRY ── */
+function openHistory(){
+  document.getElementById("historyPanel").classList.add("open");
+  loadRegistry();
+}
+
+function closeHistory(){
+  document.getElementById("historyPanel").classList.remove("open");
+}
+
+function loadRegistry(){
+  fetch("/bed_status")
+  .then(res => res.json())
+  .then(beds => {
+    allBedData = beds;
+    renderRegistry(beds);
+    document.getElementById("occupiedCount").innerText = beds.filter(b => b.status === "OCCUPIED").length;
+  });
+}
+
+function renderRegistry(beds){
+  let grid = document.getElementById("historyGrid");
+  if(!beds.length){ grid.innerHTML = '<p style="color:var(--dim);padding:20px">No beds found.</p>'; return; }
+  grid.innerHTML = beds.map(b => {
+    let isOccupied = b.status === "OCCUPIED";
+    let cardClass = isOccupied ? "history-card occupied-card" : "history-card vacant-card";
+    let badgeClass = isOccupied ? "status-badge badge-occupied" : "status-badge badge-vacant";
+    let pidLine = b.patient_id
+      ? `<div class="hc-pid">Patient ID: <span>${b.patient_id}</span></div>`
+      : `<div class="hc-pid" style="color:var(--dim)">No patient assigned</div>`;
+    let admittedLine = b.admitted
+      ? `<div class="hc-admitted">Admitted: ${b.admitted}</div>`
+      : '';
+    return `
+      <div class="${cardClass}">
+        <div class="hc-header">
+          <div class="hc-bed">BED ${b.bed}</div>
+          <span class="${badgeClass}">${b.status}</span>
+        </div>
+        ${pidLine}
+        ${admittedLine}
+        ${isOccupied ? `<button class="discharge-btn" onclick="dischargeFromRegistry(${b.bed})">✔ Discharge</button>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function filterBeds(type){
+  currentFilter = type;
+  ['all','occupied','vacant'].forEach(t => {
+    document.getElementById('filter-'+t).classList.toggle('active', t === type);
+  });
+  let filtered = type === 'all' ? allBedData
+    : allBedData.filter(b => b.status.toLowerCase() === type);
+  renderRegistry(filtered);
+}
+
+function searchPatient(){
+  let q = document.getElementById("searchInput").value.toUpperCase().trim();
+  if(!q){ filterBeds(currentFilter); return; }
+  let filtered = allBedData.filter(b => b.patient_id && b.patient_id.toUpperCase().includes(q));
+  renderRegistry(filtered);
+}
+
+function dischargeFromRegistry(bedId){
+  if(!confirm(`Discharge patient from Bed ${bedId}?`)) return;
+  fetch(`/discharge/${bedId}`, { method: "POST" })
+  .then(() => loadRegistry());
+}
+
+/* ── CHAT ── */
+function toggleChat(){
+  chatOpen = !chatOpen;
+  document.getElementById("chatPanel").classList.toggle("hidden", !chatOpen);
+  if(chatOpen){
+    document.getElementById("unreadDot").style.display = "none";
+    loadChatHistory();
+  }
+}
+
+function switchRoom(room){
+  currentRoom = room;
+  ['general','emergency','icu'].forEach(r => {
+    document.getElementById('tab-'+r).classList.toggle('active', r === room);
+  });
+  document.getElementById("chatMessages").innerHTML = '';
+  loadChatHistory();
+}
+
+function loadChatHistory(){
+  fetch("/chat_history/" + currentRoom)
+  .then(res => res.json())
+  .then(data => {
+    let msgs = document.getElementById("chatMessages");
+    msgs.innerHTML = '';
+    data.messages.forEach(m => appendMessage(m[0], m[1], m[2], m[3]));
+    msgs.scrollTop = msgs.scrollHeight;
+  });
+}
+
+function sendChat(){
+  let input = document.getElementById("chatInput");
+  let msg = input.value.trim();
+  if(!msg) return;
+  socket.emit("chat_message", { room: currentRoom, username: USERNAME, role: ROLE, msg });
+  input.value = '';
+}
+
+socket.on("connect", () => {
+  socket.emit("join_room", { room: "general" });
+  socket.emit("join_room", { room: "emergency" });
+  socket.emit("join_room", { room: "icu" });
+});
+
+socket.on("chat_message", function(data){
+  if(data.room !== currentRoom){
+    document.getElementById("unreadDot").style.display = chatOpen ? "none" : "block";
+    return;
+  }
+  appendMessage(data.username, data.role, data.msg, new Date().toLocaleTimeString());
+  let msgs = document.getElementById("chatMessages");
+  msgs.scrollTop = msgs.scrollHeight;
+});
+
+function appendMessage(username, role, text, time){
+  let msgs = document.getElementById("chatMessages");
+  let isMine = username === USERNAME;
+  let roleClass = role === 'doctor' ? 'role-doctor' : 'role-nurse';
+  let div = document.createElement("div");
+  div.className = `msg-bubble ${isMine ? 'mine' : 'theirs'}`;
+  div.innerHTML = `
+    <div class="msg-meta">
+      <span class="${roleClass}">${username} (${role})</span>
+      <span>${time || ''}</span>
+    </div>
+    <div class="msg-text">${text}</div>
+  `;
+  msgs.appendChild(div);
+}
+</script>
+</body>
+</html>
