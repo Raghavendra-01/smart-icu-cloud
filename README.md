@@ -14,14 +14,27 @@
 </p>
 
 <p align="center">
-  <b>Built by Raghavendra &amp; Dhanush</b>
+  <b>Built by Raghavendra Meda</b>
 </p>
 
 ---
 
 ## 📸 Screenshots
 
-> *(Add screenshots of your Login, Nurse Dashboard, Doctor Dashboard, Admin Panel, and Analytics page here)*
+### 🔐 Login Portal
+![Login](screenshots/login.png)
+
+### 👩‍⚕️ Nurse Console — 100 Live Beds
+![Nurse Dashboard](screenshots/nurse.png)
+
+### 👨‍⚕️ Doctor Console — Critical Alerts
+![Doctor Dashboard](screenshots/doctor.png)
+
+### 🛡️ Admin Panel — Staff & Audit Logs
+![Admin Panel](screenshots/admin.png)
+
+### 📊 Hospital Analytics Dashboard
+![Analytics](screenshots/analytics.png)
 
 ---
 
@@ -50,8 +63,8 @@
   └────────┬────────────┘
            │
     ┌──────┴──────┐
-    │  Browser UI │
-    │  (4 roles)  │
+    │  Browser UI  │
+    │  (4 roles)   │
     └─────────────┘
 ```
 
@@ -142,6 +155,7 @@ smart-icu-cloud/
 │   ├── history.html             # Temperature history chart
 │   └── dashboard.html           # Basic monitoring view
 │
+├── screenshots/                 # UI screenshots
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -158,7 +172,7 @@ smart-icu-cloud/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/smart-icu-cloud.git
+git clone https://github.com/Raghavendra-01/smart-icu-cloud.git
 cd smart-icu-cloud
 ```
 
@@ -201,7 +215,7 @@ http://localhost:5000
 
 ---
 
-## 📦 requirements.txt
+## 📦 Requirements
 
 ```
 flask
@@ -258,11 +272,12 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## 🙌 Authors
+## 🙌 Author
 
-**Raghavendra** — [GitHub](https://github.com/YOUR_USERNAME) · [LinkedIn](https://linkedin.com/in/YOUR_PROFILE)
+**Raghavendra Meda**
 
-**Dhanush** — [GitHub](https://github.com/DHANUSH_USERNAME) · [LinkedIn](https://linkedin.com/in/DHANUSH_PROFILE)
+[![GitHub](https://img.shields.io/badge/GitHub-Raghavendra--01-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Raghavendra-01)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Raghavendra%20Meda-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)]([https://www.linkedin.com/in/raghavendra-meda](https://www.linkedin.com/in/raghavendra-meda-134167357/))
 
 ---
 
