@@ -63,8 +63,8 @@
   └────────┬────────────┘
            │
     ┌──────┴──────┐
-    │  Browser UI  │
-    │  (4 roles)   │
+    │  Browser UI │
+    │  (4 roles)  │
     └─────────────┘
 ```
 
@@ -277,7 +277,7 @@ This project is licensed under the [MIT License](LICENSE).
 **Raghavendra Meda**
 
 [![GitHub](https://img.shields.io/badge/GitHub-Raghavendra--01-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Raghavendra-01)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Raghavendra%20Meda-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)]([https://www.linkedin.com/in/raghavendra-meda](https://www.linkedin.com/in/raghavendra-meda-134167357/))
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Raghavendra%20Meda-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/raghavendra-meda-134167357)
 
 ---
 
